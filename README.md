@@ -41,6 +41,26 @@ Use case: Calculate Allele Frequency & Linear Regression
 
 [View API Architecture Use Case](API_architecture_use_case.txt)
 
+                 federation_client.py
+                         │
+               ┌─────────┴─────────┐
+               │                   │
+        federated analysis   federated learning
+               │                   │
+       GET allele freq         POST train
+               │                   │
+       ┌───────┼───────┐   ┌───────┼───────┐
+       ↓       ↓       ↓   ↓       ↓       ↓
+      TRE1    TRE2    TRE3 TRE1    TRE2    TRE3
+       │       │       │   │       │       │
+      DB      DB      DB   DB      DB      DB
+       🔒      🔒      🔒   🔒      🔒      🔒
+       │       │       │   │       │       │
+     counts  counts  counts β₁    β₂      β₃
+       └───────┼───────┘   └───────┼───────┘
+               ↓                   ↓
+          aggregate          aggregate model
+          
 ML jobs:
 - Select dataset and distribute it
 - Create a simulated NVFlare job
