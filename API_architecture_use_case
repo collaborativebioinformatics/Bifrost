@@ -1,0 +1,19 @@
+                 federation_client.py
+                         │
+               ┌─────────┴─────────┐
+               │                   │
+        federated analysis   federated learning
+               │                   │
+       GET allele freq         POST train
+               │                   │
+       ┌───────┼───────┐   ┌───────┼───────┐
+       ↓       ↓       ↓   ↓       ↓       ↓
+      TRE1    TRE2    TRE3 TRE1    TRE2    TRE3
+       │       │       │   │       │       │
+      DB      DB      DB   DB      DB      DB
+       🔒      🔒      🔒   🔒      🔒      🔒
+       │       │       │   │       │       │
+     counts  counts  counts β₁    β₂      β₃
+       └───────┼───────┘   └───────┼───────┘
+               ↓                   ↓
+          aggregate          aggregate model
