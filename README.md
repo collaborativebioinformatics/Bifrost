@@ -48,6 +48,12 @@ ML jobs:
 - Run the job on the connected clients
 
 ### 3. Weights aggregation
+- Collect model weights from each TRE after local training
+- Aggregate the local weights on the FLARE server using FedAvg
+- Generate a single global model from the aggregated weights
+- Redistribute the global model to participating TREs
+- Run a small number of federated training rounds and track the results
+- Log the aggregation process without exposing local data
 
 ### 4. Interface that allows API usage for non-technical users
 
