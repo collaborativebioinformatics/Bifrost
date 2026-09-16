@@ -2,6 +2,16 @@
 
 Cross-TRE federated analysis: run an analysis across several Trusted Research Environments (TREs) without moving any record-level data. Each TRE computes locally behind its own native API and returns only disclosure-checked aggregates; the orchestrator combines them.
 
+## Team
+
+- Ioannis Christofilogiannis
+- Gaurang Sharma
+- Marta Menta Czinkoczky
+- Udogwu Emiri
+- Pedro Gabriel Campana
+- Vitalii Babenko
+- Melissa Wong
+
 ## Architecture
 
 Editable source: [flowchart.drawio](flowchart.drawio) (open with [diagrams.net](https://app.diagrams.net)).
