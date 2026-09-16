@@ -1,19 +1,74 @@
-                 federation_client.py
-                         │
-               ┌─────────┴─────────┐
-               │                   │
-        federated analysis   federated learning
-               │                   │
-       GET allele freq         POST train
-               │                   │
-       ┌───────┼───────┐   ┌───────┼───────┐
-       ↓       ↓       ↓   ↓       ↓       ↓
-      TRE1    TRE2    TRE3 TRE1    TRE2    TRE3
-       │       │       │   │       │       │
-      DB      DB      DB   DB      DB      DB
-       🔒      🔒      🔒   🔒      🔒      🔒
-       │       │       │   │       │       │
-     counts  counts  counts β₁    β₂      β₃
-       └───────┼───────┘   └───────┼───────┘
-               ↓                   ↓
-          aggregate          aggregate model
+                         USER
+                          │
+                          ↓
+                federation_client.py
+                          │
+           ┌──────────────┼──────────────┐
+           │              │              │
+           ↓              ↓              ↓
+     localhost:8001  localhost:8002  localhost:8003
+           │              │              │
+       ┌───▼───┐      ┌───▼───┐      ┌───▼───┐
+       │ TRE A │      │ TRE B │      │ TRE C │
+       │FastAPI│      │FastAPI│      │FastAPI│
+       └───┬───┘      └───┬───┘      └───┬───┘
+           │              │              │
+       dataset A      dataset B      dataset C
+           🔒              🔒              🔒
+           │              │              │
+      local analysis  local analysis  local analysis
+           │              │              │
+           └──────────────┼──────────────┘
+                          │
+                  permitted results
+                          ↓
+                 federation_client
+                          │
+                          ↓
+                  federated result
+
+#Use case 1 — federated allele frequency
+GET /allele-frequency?variant=rs123
+
+request
+   ↓
+FastAPI
+   ↓
+query TRE A's local UKB synthetic data
+   ↓
+calculate allele count + frequency
+   ↓
+return aggregate result
+
+{
+  "variant": "rs123",
+  "n_samples": 1000,
+  "allele_count": 40,
+  "allele_frequency": 0.02
+}
+
+#Use case 2 — federated linear regression
+POST /linear-regression
+{
+  "features": ["age", "bmi"],
+  "target": "blood_pressure"
+}
+
+TRE A data                  TRE B data
+age BMI BP                  age BMI BP
+45  25  125                 61  29  142
+52  28  133                 37  23  118
+...                         ...
+     ↓                           ↓
+LinearRegression.fit()      LinearRegression.fit()
+     ↓                           ↓
+local parameters            local parameters
+
+{
+  "n_samples": 1000,
+  "intercept": 80.3,
+  "coefficients": {
+    "age": 0.61,
+    "bmi": 1.42
+  }
+}
