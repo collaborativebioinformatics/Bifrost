@@ -39,7 +39,7 @@ Use case: Calculate Allele Frequency & Linear Regression
   federated learning — training happens inside each TRE; model information leaves.
 - Use case X: iterative model training (DL or similar)
 
-[API_architecture_use_case]
+[View API Architecture Use Case](API_architecture_use_case.txt)
 
 ML jobs:
 - Select dataset and distribute it
