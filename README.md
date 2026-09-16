@@ -6,8 +6,7 @@ Cross-TRE federated analysis: run an analysis across several Trusted Research En
 
 Editable source: [flowchart.drawio](flowchart.drawio) (open with [diagrams.net](https://app.diagrams.net)).
 
-<img src=“flowchart_drawio.svg">
-
+![Cross-TRE federated analysis flowchart](flowchart_drawio.svg)
 
 ### Flow
 
