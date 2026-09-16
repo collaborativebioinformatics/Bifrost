@@ -92,3 +92,6 @@ ML jobs:
 - Gefion clients (multiple users)
 - Server for model aggregation (Brev or AWS)
 - Admin - FLARE Dashboard/deployment kits (Brev or AWS)
+
+### X. Nice interface
+- User interface that allows API Usage for non-technical users
