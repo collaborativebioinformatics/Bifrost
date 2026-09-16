@@ -1,5 +1,51 @@
 # Federated_APIs
 
+Cross-TRE federated analysis: run an analysis across several Trusted Research Environments (TREs) without moving any record-level data. Each TRE computes locally behind its own native API and returns only disclosure-checked aggregates; the orchestrator combines them.
+
+## Architecture
+
+Editable source: [flowchart.drawio](flowchart.drawio) (open with [diagrams.net](https://app.diagrams.net)).
+
+```mermaid
+flowchart TD
+    R[Researcher] --> S["Analysis spec (JSON)<br/>canonical variable names"]
+    S --> O["Orchestrator<br/>FLARE server, outside TREs"]
+    O -.-> M["Harmonisation map<br/>canonical → local columns"]
+
+    subgraph TREA["TRE A — REST API"]
+        A1[FLARE client] --> A2["Adapter → native API<br/>(local compute, data stays)"] --> A3["Safe Output filter<br/>(k ≥ 5, aggregates only)"]
+    end
+
+    subgraph TREB["TRE B — DataSHIELD / R"]
+        B1[FLARE client] --> B2["Adapter → native API<br/>(local compute, data stays)"] --> B3["Safe Output filter<br/>(k ≥ 5, aggregates only)"]
+    end
+
+    subgraph TREC["TRE C — SQL gateway"]
+        C1[FLARE client] --> C2["Adapter → native API<br/>(local compute, data stays)"] --> C3["Safe Output filter<br/>(k ≥ 5, aggregates only)"]
+    end
+
+    O -->|"outbound-only gRPC/TLS<br/>(TREs dial out)"| A1
+    O --> B1
+    O --> C1
+
+    A3 --> AGG["Aggregation on server<br/>federated statistics<br/>later: feature selection / logreg"]
+    B3 --> AGG
+    C3 --> AGG
+
+    AGG --> D{Disclosure check OK?}
+    D -->|yes| OUT["Results + audit log → GitHub"]
+    D -->|no| REJ[Reject, refine spec]
+```
+
+### Flow
+
+1. **Request** — researcher submits an analysis spec (JSON) using canonical variable names; the orchestrator resolves them to each site's local columns via the harmonisation map.
+2. **Dispatch** — the orchestrator (FLARE server) sits outside every TRE. TREs dial out over gRPC/TLS, so no inbound ports are opened in the secure environments.
+3. **Local execution** — each TRE runs a FLARE client with an adapter onto its native API (REST, DataSHIELD/R, SQL gateway). Compute happens where the data is; record-level data never leaves.
+4. **Safe output** — each site filters results before they leave: aggregates only, small-count suppression (k ≥ 5).
+5. **Aggregation** — the server combines site results into federated statistics; feature selection and logistic regression follow later.
+6. **Disclosure check** — passing results plus an audit log are published; failures are rejected and the spec is refined.
+
 ## Goals
 
 ### 0. Simulate TREs
