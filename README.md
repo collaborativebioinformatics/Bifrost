@@ -6,36 +6,8 @@ Cross-TRE federated analysis: run an analysis across several Trusted Research En
 
 Editable source: [flowchart.drawio](flowchart.drawio) (open with [diagrams.net](https://app.diagrams.net)).
 
-```mermaid
-flowchart TD
-    R[Researcher] --> S["Analysis spec (JSON)<br/>canonical variable names"]
-    S --> O["Orchestrator<br/>FLARE server, outside TREs"]
-    O -.-> M["Harmonisation map<br/>canonical → local columns"]
+<img src=“flowchart_drawio.svg">
 
-    subgraph TREA["TRE A — REST API"]
-        A1[FLARE client] --> A2["Adapter → native API<br/>(local compute, data stays)"] --> A3["Safe Output filter<br/>(k ≥ 5, aggregates only)"]
-    end
-
-    subgraph TREB["TRE B — DataSHIELD / R"]
-        B1[FLARE client] --> B2["Adapter → native API<br/>(local compute, data stays)"] --> B3["Safe Output filter<br/>(k ≥ 5, aggregates only)"]
-    end
-
-    subgraph TREC["TRE C — SQL gateway"]
-        C1[FLARE client] --> C2["Adapter → native API<br/>(local compute, data stays)"] --> C3["Safe Output filter<br/>(k ≥ 5, aggregates only)"]
-    end
-
-    O -->|"outbound-only gRPC/TLS<br/>(TREs dial out)"| A1
-    O --> B1
-    O --> C1
-
-    A3 --> AGG["Aggregation on server<br/>federated statistics<br/>later: feature selection / logreg"]
-    B3 --> AGG
-    C3 --> AGG
-
-    AGG --> D{Disclosure check OK?}
-    D -->|yes| OUT["Results + audit log → GitHub"]
-    D -->|no| REJ[Reject, refine spec]
-```
 
 ### Flow
 
