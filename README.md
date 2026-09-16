@@ -61,6 +61,11 @@ flowchart TD
 ### 2. A simple ML/AI training task
 Use case: Calculate Allele Frequency & Linear Regression
 
+Use case 1: Calculate Allele Frequency
+federated analysis — computation happens inside each TRE; aggregate statistic leaves.
+Use case 2: Linear regression 
+federated learning — training happens inside each TRE; model information leaves.
+
 ML jobs:
 - Select dataset and distribute it
 - Create a simulated NVFlare job
