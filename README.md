@@ -11,6 +11,7 @@ Cross-TRE federated analysis: run an analysis across several Trusted Research En
 - Pedro Gabriel Campana
 - Vitalii Babenko
 - Melissa Wong
+- Espen Hagen
 
 ## Architecture
 
