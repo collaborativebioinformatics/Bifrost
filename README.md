@@ -7,7 +7,9 @@
 
 ### 1. Federated Infrastructure
 1.1. Create client + server kits (certificates)
+
 1.2. Distribute them
+
 1.3. Connect them via IP addresses
 
 ### 2. A simple ML/AI training task
