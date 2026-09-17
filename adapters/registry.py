@@ -30,7 +30,7 @@ def resolve_api_url(tre_id: str, default: str) -> str:
     """TRE_API_URL env (inside the TRE container) > data/sites/local_urls.json (dev_tres.py) > sites.yaml."""
     if os.environ.get("TRE_API_URL"):
         return os.environ["TRE_API_URL"]
-    local = Path(ROOT) / "data" / "sites" / "local_urls.json"
+    local = Path(os.environ.get("LOCAL_URLS", Path(ROOT) / "data" / "sites" / "local_urls.json"))
     if local.exists():
         urls = json.loads(local.read_text())
         if tre_id in urls:

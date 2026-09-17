@@ -17,10 +17,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+from scripts.sites import SITES_PATH  # noqa: E402
 from spec.analysis_spec import AnalysisSpec  # noqa: E402
 
 CUSTOM_PKGS = ["adapters", "harmonisation", "spec", "server", "flare"]
-CUSTOM_FILES = ["sites.yaml", "projects.yaml", "scripts/__init__.py", "scripts/sites.py"]
+CUSTOM_FILES = ["projects.yaml", "scripts/__init__.py", "scripts/sites.py"]
 
 
 def build(spec_path: Path, out: Path, min_clients: int, wait_time: int, task_timeout: int = 300,
@@ -42,6 +43,7 @@ def build(spec_path: Path, out: Path, min_clients: int, wait_time: int, task_tim
     for f in CUSTOM_FILES:
         (custom / f).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(ROOT / f, custom / f)
+    shutil.copy(SITES_PATH, custom / "sites.yaml")
 
     (out / "meta.json").write_text(json.dumps({
         "name": out.name, "resource_spec": {}, "min_clients": min_clients,

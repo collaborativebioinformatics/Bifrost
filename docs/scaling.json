@@ -1,0 +1,50 @@
+[
+  {
+    "n_sites": 3,
+    "rows_total": 3000,
+    "coverage": "3/3 sites",
+    "sites_missing": [],
+    "round_s": 4.077,
+    "merge_s": 0.001,
+    "simulator_wall_s": 10.6,
+    "max_abs_err": 0.0,
+    "regions": 3,
+    "threads": 3
+  },
+  {
+    "n_sites": 10,
+    "rows_total": 10000,
+    "coverage": "10/10 sites",
+    "sites_missing": [],
+    "round_s": 7.742,
+    "merge_s": 0.0,
+    "simulator_wall_s": 16.6,
+    "max_abs_err": 0.0,
+    "regions": 4,
+    "threads": 8
+  },
+  {
+    "n_sites": 50,
+    "rows_total": 50000,
+    "coverage": "50/50 sites",
+    "sites_missing": [],
+    "round_s": 21.434,
+    "merge_s": 0.001,
+    "simulator_wall_s": 30.7,
+    "max_abs_err": 0.0,
+    "regions": 4,
+    "threads": 8
+  },
+  {
+    "n_sites": 100,
+    "rows_total": 100000,
+    "coverage": "100/100 sites",
+    "sites_missing": [],
+    "round_s": 38.333,
+    "merge_s": 0.001,
+    "simulator_wall_s": 47.7,
+    "max_abs_err": 0.0,
+    "regions": 4,
+    "threads": 8
+  }
+]

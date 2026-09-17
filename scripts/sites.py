@@ -1,12 +1,13 @@
 """Single loader for sites.yaml. Nothing else may list sites."""
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
-SITES_PATH = ROOT / "sites.yaml"
+SITES_PATH = Path(os.environ.get("SITES_PATH", ROOT / "sites.yaml"))  # override only for simulations
 
 
 def load_sites(path: Path = SITES_PATH) -> dict:

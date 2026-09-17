@@ -7,8 +7,7 @@ and the coverage string ("2/3 sites"), not fatal.
 """
 from __future__ import annotations
 
-import json
-from pathlib import Path
+import time
 
 from nvflare.apis.client import Client
 from nvflare.apis.controller_spec import ClientTask, Task
@@ -53,6 +52,7 @@ class FedAnalysisController(Controller):
         data = Shareable()
         data["spec"] = self.spec.model_dump()
         task = Task(name=self.task_name, data=data, timeout=self.task_timeout, result_received_cb=self._collect)
+        t0 = time.time()
         self.broadcast_and_wait(task, fl_ctx, min_responses=self.min_clients,
                                 wait_time_after_min_received=self.wait_time, abort_signal=abort_signal)
         if abort_signal.triggered:
@@ -61,7 +61,10 @@ class FedAnalysisController(Controller):
         expected = sorted(c.name for c in fl_ctx.get_engine().get_clients())
         merged = combine(self.results.values(), expected)
         merged["sites_failed"] = self.failed
+        merged["timing"] = {"round_s": round(time.time() - t0, 3), "merge_s": None}
+        t1 = time.time()
         check = disclosure_check.check(merged, self.spec.model_dump(), overseer_queue.release_log_path())
+        merged["timing"]["merge_s"] = round(time.time() - t1, 3)
         run_dir = overseer_queue.record(self.spec.model_dump(), merged, check)
         self.log_info(fl_ctx, f"{merged['coverage']} (missing {merged['sites_missing']}), n={merged['n']}, "
                               f"disclosure check {check['decision']} {check['reasons']} -> {run_dir}")

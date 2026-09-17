@@ -8,30 +8,32 @@ Bifrost — run one analysis across several Trusted Research Environments (TREs)
 
 Python 3.11–3.12, NVIDIA FLARE, FastAPI, DuckDB, Docker Compose. Dependency version constraints are declared in [pyproject.toml](pyproject.toml); ask before adding one.
 
-## Status (2026-09-17)
+## Status (2026-09-17, after M5)
 
 Implemented:
 
 | Area | Where |
 | --- | --- |
-| Site definitions | `sites.yaml` — three TREs (`hunt`/rest, `gefion`/datashield, `brev`/sql) |
+| Site definitions | `sites.yaml` — three TREs (`hunt`/rest, `gefion`/datashield, `brev`/sql); `scripts/sites.py` is the only loader (`SITES_PATH` env overrides it for simulations) |
 | Generators | `scripts/gen_sites.py` emits `docker-compose.yml` and `flare/project.yml` from `sites.yaml` |
-| Synthetic data | `data/generate.py` → per-site files + `data/ground_truth.json` |
-| Mock TREs | `tres/rest`, `tres/datashield`, `tres/sql`, each containerised with its own API |
-| Adapters | `adapters/` behind `adapters/registry.py`, plus `adapters/safe_output.py` |
-| Analysis spec | `spec/analysis_spec.py`, examples in `spec/examples/` |
-| Harmonisation | `harmonisation/canonical.yaml` |
-| Tests | `tests/` — 21 passing |
+| Synthetic data | `data/generate.py` → `data/sites/<tre_id>.csv` (gitignored) + `data/ground_truth.json` |
+| Mock TREs | `tres/rest`, `tres/datashield`, `tres/sql` (`create_app(tre_id, data_path)` factories + Dockerfiles); `scripts/dev_tres.py` runs them without Docker |
+| Adapters | `adapters/` behind `adapters/registry.py`; `adapters/safe_output.py` filters + writes `audit/<tre_id>/audit.jsonl` |
+| Analysis spec | `spec/analysis_spec.py`, examples in `spec/examples/`; Safe Projects allow-list in `projects.yaml` |
+| Harmonisation | `harmonisation/canonical.yaml` (unlisted site ⇒ local name = canonical name) |
+| FLARE jobs | `flare/app/` — `controller.py`/`executor.py` (allele_freq, fed_stats, exact fed_linreg), `linreg_controller.py`/`linreg_executor.py`/`linreg.py` (FedAvg fed_linreg). `scripts/build_job.py` assembles a job folder; `flare/jobs/` is generated and gitignored |
+| Server side | `server/aggregate.py` (associative merge), `server/disclosure_check.py`, `server/overseer_queue.py` (CLI); outputs under `server/out/` (gitignored, `SERVER_OUT` env) |
+| Ops scripts | `scripts/provision.sh`, `scripts/onboard_tre.sh`, `scripts/start_server.sh`, `scripts/start_client.sh`, `scripts/run_job.py` (`--mode simulator|prod`, `--fedavg`), `scripts/run_local.py`, `scripts/verify.py`, `scripts/scale_sim.py` → `docs/scaling.png` |
+| Tests | `tests/` — 31 fast + 3 FLARE-simulator (`-m slow`) |
 
-Not implemented: FLARE jobs (`flare/` has only Dockerfiles and `project.yml`; there is no `jobs/`), server-side disclosure check, overseer queue, scale simulation, UI.
+Not implemented: UI; no run against real Docker containers or a live (non-simulator) FLARE server has been performed on the development machine (no Docker there).
 
 Known discrepancies — do not treat these as existing:
 
-- `pyproject.toml` lists `server` in `[tool.setuptools] packages`, but there is no `server/` directory. An editable install will fail until one is added or the entry is removed.
-- `sites.yaml` documents `scripts/onboard_tre.sh`; that script does not exist.
 - `flowchart.drawio` does not match the rendered `flowchart_drawio.svg`.
+- `README.md` still describes the pre-implementation plan (no results table, no "adding a TRE" section).
 
-Planning documents: [BUILD_PLAN.md](BUILD_PLAN.md) (provisional, milestone-based) and [docs/variables.md](docs/variables.md) (documents the implemented variables; the local column names in it are invented for the mock TREs and not agreed with any real site).
+Planning documents: [BUILD_PLAN.md](BUILD_PLAN.md) (milestone-based; M0–M5 done) and [docs/variables.md](docs/variables.md) (documents the implemented variables; the local column names in it are invented for the mock TREs and not agreed with any real site).
 
 ## Plans and code disagree often here
 
@@ -43,7 +45,11 @@ Confirm a path, command, module, or function exists before referencing it — th
 
 Checks that exist and were confirmed working on 2026-09-17:
 
-- `python -m pytest -q` — 21 passed. Test paths come from `[tool.pytest.ini_options]`.
+- `python -m pytest -q -m "not slow"` — 31 passed, ~1 s, no network.
+- `python -m pytest -q -m slow` — 3 passed, ~50 s; starts the TREs as local processes and runs FLARE simulator jobs (allele_freq, straggler, FedAvg linreg).
+- `scripts/dev_tres.py` + `scripts/run_job.sh spec/examples/<spec>.json` — simulator end-to-end with `scripts/verify.py` against ground truth.
+- `scripts/scale_sim.py` — N ∈ {3, 10, 50, 100} clients, exact at every N; ~2 min.
+- `scripts/onboard_tre.sh <id>` — adds a site, regenerates, provisions, packs a kit (~2 s).
 - `scripts/up.sh` — builds and starts all TREs, then checks each one's `/health` endpoint from its own FLARE client container and asserts that no TRE container can reach the public internet. Requires Docker; not run during this check.
 
 No linter or formatter is configured, and there is no CI.

@@ -108,11 +108,12 @@ def main() -> None:
         local.insert(0, "row_id", [f"{tid}-{i:06d}" for i in range(len(local))])
         path = args.out / "sites" / f"{tid}.csv"
         local.to_csv(path, index=False)
-        print(f"{path.relative_to(ROOT)}: {len(local)} rows, cols e.g. {list(local.columns[:6])}")
+        if len(sites) <= 10:
+            print(f"{path}: {len(local)} rows, cols e.g. {list(local.columns[:6])}")
 
     gt = ground_truth(df, parts, truth)
     (args.out / "ground_truth.json").write_text(json.dumps(gt, indent=2))
-    print(f"data/ground_truth.json: n={gt['n_total']}, {len(gt['allele_freq'])} SNPs, OLS coef {gt['ols']['coef']}")
+    print(f"{args.out / 'ground_truth.json'}: n={gt['n_total']} over {len(sites)} sites, {len(gt['allele_freq'])} SNPs, OLS coef {gt['ols']['coef']}")
 
 
 if __name__ == "__main__":
