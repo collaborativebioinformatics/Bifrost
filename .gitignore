@@ -6,3 +6,10 @@ node_modules/
 .claude-plugin/
 .codex/
 .mcp.json
+data/sites/local_urls.json
+.venv/
+flare/workspace/
+audit/*/
+*.egg-info/
+server/out/
+data/sites/*.csv

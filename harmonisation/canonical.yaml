@@ -1,0 +1,134 @@
+# Harmonisation map: canonical variable -> local column name per TRE.
+# PLACEHOLDER content until the Writer's docs/variables.md arrives; the *shape*
+# of this file is fixed. Every site listed under `local:` must exist in sites.yaml.
+#
+#   type : continuous | binary | genotype
+#   unit : free text
+#   local: { <tre_id>: <local column name> }
+
+variables:
+  age:
+    description: Age at baseline
+    type: continuous
+    unit: years
+    local: {hunt: alder, gefion: age_years, brev: AGE}
+  sex:
+    description: Sex (0 = female, 1 = male)
+    type: binary
+    unit: ""
+    local: {hunt: kjonn, gefion: sex_male, brev: SEX}
+  bmi:
+    description: Body mass index
+    type: continuous
+    unit: kg/m2
+    local: {hunt: bmi_baseline, gefion: body_mass_index, brev: BMI}
+  ldl:
+    description: LDL cholesterol
+    type: continuous
+    unit: mmol/L
+    local: {hunt: ldl_kol, gefion: ldl_c, brev: LDL_MMOL}
+  sbp:
+    description: Systolic blood pressure (regression outcome, placeholder)
+    type: continuous
+    unit: mmHg
+    local: {hunt: systolisk, gefion: sbp_mmhg, brev: SBP}
+  snp_rs001:
+    description: Genotype dosage of minor allele at rs001 (0/1/2)
+    type: genotype
+    unit: alleles
+    local: {hunt: rs001_gt, gefion: SNP_1, brev: g_rs001}
+  snp_rs002:
+    description: Genotype dosage of minor allele at rs002 (0/1/2)
+    type: genotype
+    unit: alleles
+    local: {hunt: rs002_gt, gefion: SNP_2, brev: g_rs002}
+  snp_rs003:
+    description: Genotype dosage of minor allele at rs003 (0/1/2)
+    type: genotype
+    unit: alleles
+    local: {hunt: rs003_gt, gefion: SNP_3, brev: g_rs003}
+  snp_rs004:
+    description: Genotype dosage of minor allele at rs004 (0/1/2)
+    type: genotype
+    unit: alleles
+    local: {hunt: rs004_gt, gefion: SNP_4, brev: g_rs004}
+  snp_rs005:
+    description: Genotype dosage of minor allele at rs005 (0/1/2)
+    type: genotype
+    unit: alleles
+    local: {hunt: rs005_gt, gefion: SNP_5, brev: g_rs005}
+  snp_rs006:
+    description: Genotype dosage of minor allele at rs006 (0/1/2)
+    type: genotype
+    unit: alleles
+    local: {hunt: rs006_gt, gefion: SNP_6, brev: g_rs006}
+  snp_rs007:
+    description: Genotype dosage of minor allele at rs007 (0/1/2)
+    type: genotype
+    unit: alleles
+    local: {hunt: rs007_gt, gefion: SNP_7, brev: g_rs007}
+  snp_rs008:
+    description: Genotype dosage of minor allele at rs008 (0/1/2)
+    type: genotype
+    unit: alleles
+    local: {hunt: rs008_gt, gefion: SNP_8, brev: g_rs008}
+  snp_rs009:
+    description: Genotype dosage of minor allele at rs009 (0/1/2)
+    type: genotype
+    unit: alleles
+    local: {hunt: rs009_gt, gefion: SNP_9, brev: g_rs009}
+  snp_rs010:
+    description: Genotype dosage of minor allele at rs010 (0/1/2)
+    type: genotype
+    unit: alleles
+    local: {hunt: rs010_gt, gefion: SNP_10, brev: g_rs010}
+  snp_rs011:
+    description: Genotype dosage of minor allele at rs011 (0/1/2)
+    type: genotype
+    unit: alleles
+    local: {hunt: rs011_gt, gefion: SNP_11, brev: g_rs011}
+  snp_rs012:
+    description: Genotype dosage of minor allele at rs012 (0/1/2)
+    type: genotype
+    unit: alleles
+    local: {hunt: rs012_gt, gefion: SNP_12, brev: g_rs012}
+  snp_rs013:
+    description: Genotype dosage of minor allele at rs013 (0/1/2)
+    type: genotype
+    unit: alleles
+    local: {hunt: rs013_gt, gefion: SNP_13, brev: g_rs013}
+  snp_rs014:
+    description: Genotype dosage of minor allele at rs014 (0/1/2)
+    type: genotype
+    unit: alleles
+    local: {hunt: rs014_gt, gefion: SNP_14, brev: g_rs014}
+  snp_rs015:
+    description: Genotype dosage of minor allele at rs015 (0/1/2)
+    type: genotype
+    unit: alleles
+    local: {hunt: rs015_gt, gefion: SNP_15, brev: g_rs015}
+  snp_rs016:
+    description: Genotype dosage of minor allele at rs016 (0/1/2)
+    type: genotype
+    unit: alleles
+    local: {hunt: rs016_gt, gefion: SNP_16, brev: g_rs016}
+  snp_rs017:
+    description: Genotype dosage of minor allele at rs017 (0/1/2)
+    type: genotype
+    unit: alleles
+    local: {hunt: rs017_gt, gefion: SNP_17, brev: g_rs017}
+  snp_rs018:
+    description: Genotype dosage of minor allele at rs018 (0/1/2)
+    type: genotype
+    unit: alleles
+    local: {hunt: rs018_gt, gefion: SNP_18, brev: g_rs018}
+  snp_rs019:
+    description: Genotype dosage of minor allele at rs019 (0/1/2)
+    type: genotype
+    unit: alleles
+    local: {hunt: rs019_gt, gefion: SNP_19, brev: g_rs019}
+  snp_rs020:
+    description: Genotype dosage of minor allele at rs020 (0/1/2)
+    type: genotype
+    unit: alleles
+    local: {hunt: rs020_gt, gefion: SNP_20, brev: g_rs020}

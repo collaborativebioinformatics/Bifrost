@@ -1,0 +1,41 @@
+# The ONLY place sites are listed. Everything else (compose, FLARE project.yml,
+# data splits, tests) is generated from this file by scripts/gen_sites.py.
+#
+# Adding a TRE = one entry here + `scripts/onboard_tre.sh <tre_id>`.
+#
+# FINAL DEMO TOPOLOGY: one FLARE client on Gefion, one on NextCloud, server on
+# Brev/AWS. Moving from the local Docker mock to that is: change api_url/hosts
+# here, re-run gen_sites.py + onboard_tre.sh, ship the kits. No code changes.
+#
+#   tre_id   : short unique id, used as FLARE client name and data file name
+#   adapter  : adapter name registered in adapters/registry.py
+#   api_url  : the TRE's native API as seen from *inside* the TRE (FLARE client side)
+#   region   : grouping key for hierarchical (relay) aggregation later
+#   weight   : share of synthetic rows this site receives (relative, non-IID split)
+
+server:
+  name: flare-server
+  host: flare-server          # DNS name the clients dial out to
+  fed_learn_port: 8002
+  admin_port: 8003
+  org: ncfh
+
+sites:
+  - tre_id: hunt
+    adapter: rest
+    api_url: http://tre-hunt:8000
+    region: nordic
+    org: hunt
+    weight: 5
+  - tre_id: gefion
+    adapter: datashield
+    api_url: http://tre-gefion:8000
+    region: nordic
+    org: gefion
+    weight: 3
+  - tre_id: brev
+    adapter: sql
+    api_url: http://tre-brev:8000
+    region: nordic
+    org: brev
+    weight: 2
