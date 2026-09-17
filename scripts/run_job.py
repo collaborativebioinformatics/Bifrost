@@ -84,7 +84,10 @@ def main() -> None:
     res = runs[-1] / "result.json"
     print(f"\nresult: {res}")
     tol = a.tol if a.tol is not None else (1e-6 if a.fedavg else 1e-9)
-    subprocess.run([sys.executable, str(ROOT / "scripts" / "verify.py"), str(res), "--tol", str(tol)], cwd=ROOT)
+    if (ROOT / "data" / "ground_truth.json").exists():
+        subprocess.run([sys.executable, str(ROOT / "scripts" / "verify.py"), str(res), "--tol", str(tol)], cwd=ROOT)
+    else:  # the orchestrator has no ground truth by design; verify on the host against server/out
+        print(f"coverage: {json.loads(res.read_text())['coverage']}  (no ground truth here -- run scripts/verify.py on the host)")
     print()
     subprocess.run([sys.executable, "-m", "server.overseer_queue", "list"], cwd=ROOT, env={**os.environ, "SERVER_OUT": str(out_dir())})
 

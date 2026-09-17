@@ -23,10 +23,10 @@ Milestones M0–M6 are implemented: three mock TREs behind different APIs, adapt
 | Allele frequency and federated OLS | verified against `data/ground_truth.json` |
 | Scale evidence — 3, 10, 50 and 100 simulated sites | `docs/scaling.png` |
 | Live (non-simulator) FLARE federation — provisioned server + clients, separate processes, mTLS | verified on one machine via `scripts/local_federation.sh` (see [Results](#results)) |
-| Run against real Docker containers (`scripts/up.sh`) | not yet performed |
+| Docker: 7 images, isolated TRE networks, containerised FLARE server + clients | verified (`scripts/up.sh --flare`, jobs from inside `flare-server`, stopped container ⇒ `2/3 sites`) |
 | Interface for non-technical users | not started |
 
-Everything verified so far runs on one machine: in-process, through the FLARE simulator, or as a real provisioned FLARE federation of separate processes over mTLS (`scripts/local_federation.sh`). Nobody has yet run the stack in Docker containers or across real networks.
+Everything verified so far runs on one machine: in-process, through the FLARE simulator, or as a real provisioned FLARE federation of separate processes over mTLS (`scripts/local_federation.sh`). Nobody has yet run clients on remote hosts (Gefion / NextCloud).
 
 ## Running it
 
@@ -83,10 +83,13 @@ scripts/local_federation.sh job spec/examples/fed_linreg.json --fedavg --rounds 
 scripts/local_federation.sh down
 ```
 
-**With Docker** — builds the TRE containers, checks each one's health endpoint from its own client container, and asserts that no TRE can reach the public internet:
+**With Docker** — builds the TRE and FLARE images, starts everything (each TRE on its own `internal: true` network; only its FLARE client also joins `federation`), checks each TRE's health endpoint from its own client container, and asserts that no TRE can reach the public internet. Jobs are submitted from inside the server container; verify on the host (`server/out/` is a bind mount):
 
 ```
-scripts/up.sh
+scripts/provision.sh && scripts/up.sh --flare
+docker compose exec flare-server python scripts/run_job.py --mode prod --admin-kit "/workspace/federated_apis/prod_00/admin@ncfh.org" spec/examples/allele_freq.json
+python scripts/verify.py server/out/41174610ab2bece0/result.json
+scripts/up.sh --down
 ```
 
 `spec/examples/` holds four specs: allele frequency, a filtered variant, one the safe-output filter is meant to reject, and federated linear regression.
