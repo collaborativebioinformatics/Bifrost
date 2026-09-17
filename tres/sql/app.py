@@ -13,9 +13,9 @@ import re
 
 import duckdb
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from tres.common import DATA_PATH, TRE_ID, load_data
+from tres.common import DATA_PATH, TRE_ID, apply_filters, irls_step, load_data
 
 MAX_ROWS = 1000
 AGG_FUNCS = re.compile(r"\b(count|sum|avg|min|max|var_samp|var_pop|stddev|group by)\b", re.I)
@@ -36,6 +36,13 @@ class SQL(BaseModel):
     sql: str
 
 
+class IrlsQuery(BaseModel):
+    outcome: str
+    features: list[str]
+    beta: list[float]
+    filters: dict[str, dict] = Field(default_factory=dict)
+
+
 def create_app(tre_id: str = TRE_ID, data_path: str = DATA_PATH) -> FastAPI:
     app = FastAPI(title=f"TRE {tre_id} (SQL)")
 
@@ -51,6 +58,10 @@ def create_app(tre_id: str = TRE_ID, data_path: str = DATA_PATH) -> FastAPI:
     @app.post("/sql")
     def sql(q: SQL):
         return _sql(q, tre_id, data_path)
+
+    @app.post("/irls")
+    def irls(q: IrlsQuery):
+        return _irls(q, tre_id, data_path)
 
     return app
 
@@ -72,6 +83,21 @@ def _sql(q: SQL, tre_id: str, data_path: str):
     if len(rows) > MAX_ROWS:
         raise HTTPException(400, f"result exceeds {MAX_ROWS} rows")
     return {"tre_id": tre_id, "columns": cols, "rows": [list(r) for r in rows]}
+
+
+def _irls(q: IrlsQuery, tre_id: str, data_path: str):
+    """Not expressible as one aggregating SELECT (needs a nonlinear per-row transform
+    parameterised by beta), so -- like /schema and /health -- this bypasses the SQL
+    passthrough entirely and computes the fixed, allow-listed aggregate directly."""
+    df = load_data(data_path)
+    unknown = [c for c in [q.outcome, *q.features] if c not in df.columns]
+    if unknown:
+        raise HTTPException(400, f"unknown columns {unknown}")
+    try:
+        sub = apply_filters(df, q.filters)
+    except (KeyError, ValueError) as e:
+        raise HTTPException(400, str(e))
+    return {"tre_id": tre_id, **irls_step(sub, q.outcome, q.features, q.beta)}
 
 
 app = create_app()

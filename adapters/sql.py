@@ -70,3 +70,9 @@ class SqlAdapter(HttpAdapter):
         k = len(terms)
         vals = [float(v) for v in row[1:]]
         return {"n": int(row[0]), "cols": terms, "matrix": [vals[i * k:(i + 1) * k] for i in range(k)]}
+
+    def irls_step(self, outcome_col: str, feature_cols: list[str], beta: list[float], filters: dict) -> dict:
+        # Nonlinear per-row transform parameterised by beta -- not expressible as one
+        # aggregating SELECT, so this goes through the gateway's dedicated /irls endpoint
+        # instead of the generic SQL passthrough (same trust boundary as /schema).
+        return self._post("/irls", {"outcome": outcome_col, "features": feature_cols, "beta": beta, "filters": filters})

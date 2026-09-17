@@ -63,6 +63,12 @@ class TREAdapter(ABC):
     def gram(self, cols: list[str], filters: dict) -> dict:
         """Cross-product matrix of [1, *cols]: {"n", "cols", "matrix"}; matrix[i][j] = sum(x_i * x_j)."""
 
+    @abstractmethod
+    def irls_step(self, outcome_col: str, feature_cols: list[str], beta: list[float], filters: dict) -> dict:
+        """One Newton-Raphson step's worth of sufficient statistics for logistic
+        regression on [1, *feature_cols] -> outcome_col, evaluated at beta:
+        {"n", "grad" (len p+1), "hess" ((p+1)x(p+1))}."""
+
     # ---- shared logic ----------------------------------------------------------------
     def local(self, canonical: str) -> str:
         return local_name(canonical, self.tre_id)

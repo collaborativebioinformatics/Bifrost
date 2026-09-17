@@ -16,6 +16,9 @@ TRE has its *native* protection underneath our Safe Output layer.
   ds.table(D$x)                 -> {"counts": {level: n}, "suppressed": [levels]}   cells < nfilter.tab hidden
   ds.range(D$x)                 -> {"min", "max"}  (DataSHIELD returns jittered range; we return exact + flag)
   ds.crossProd(cols=[D$x,...])  -> {"n", "cols", "matrix"}  cross-product of [1, x...] (cf. ds.glm's score/information exchange)
+  ds.irls(outcome=D$y, features=[D$x,...], beta=[...])
+                                 -> {"n", "grad", "hess"}  one Newton step's worth of the
+                                    logistic log-likelihood at beta (cf. ds.glm's IRLS exchange)
 """
 from __future__ import annotations
 
@@ -26,7 +29,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from tres.common import DATA_PATH, TRE_ID, apply_filters, dtypes, gram, load_data
+from tres.common import DATA_PATH, TRE_ID, apply_filters, dtypes, gram, irls_step, load_data
 
 NFILTER_TAB = int(os.environ.get("DS_NFILTER_TAB", "3"))  # DataSHIELD default min cell count
 
@@ -96,6 +99,14 @@ def _ds(call: Call, data_path: str):
             if missing:
                 raise HTTPException(400, f"unknown columns {missing}")
             return gram(df, cols)
+        if fn == "ds.irls":
+            df = apply_filters(load_data(data_path), a.get("filter"))
+            outcome = _col(a["outcome"])
+            features = [_col(x) for x in a.get("features", [])]
+            missing = [c for c in [outcome, *features] if c not in df.columns]
+            if missing:
+                raise HTTPException(400, f"unknown columns {missing}")
+            return irls_step(df, outcome, features, a["beta"])
         if fn == "ds.table":
             vc = _series(a, data_path).value_counts().sort_index()
             counts = {str(k): int(v) for k, v in vc.items() if v >= NFILTER_TAB}

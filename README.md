@@ -17,6 +17,7 @@ Calculate allele frequencies or fit linear regression across participating sites
 | --- | --- | --- |
 | **Allele frequency** | Disclosure-checked genotype counts | Federated allele frequencies |
 | **Linear regression** | OLS sufficient statistics or model parameters | Exact federated OLS or FedAvg regression |
+| **Logistic regression** | Per-round gradient/Hessian of the log-likelihood | Federated logistic regression (Newton-Raphson/IRLS), exact to the pooled MLE |
 
 Record-level data stays in the TRE. The server merges aggregates, applies a disclosure check, and records the release decision. Passing results are released automatically; flagged results wait for an overseer decision.
 
@@ -37,6 +38,7 @@ The recommended local path runs a provisioned FLARE server and one client per TR
 scripts/local_federation.sh up
 scripts/local_federation.sh job spec/examples/allele_freq.json
 scripts/local_federation.sh job spec/examples/fed_linreg.json --fedavg --rounds 10
+scripts/local_federation.sh job spec/examples/fed_logreg.json --rounds 25
 scripts/local_federation.sh down
 ```
 
@@ -46,8 +48,8 @@ scripts/local_federation.sh down
 The fast suite needs no network. The FLARE simulator suite is marked `slow` and needs `nvflare` installed:
 
 ```sh
-python -m pytest -q -m "not slow"    # 61 tests
-python -m pytest -q -m slow          # 3 tests, ~50 s
+python -m pytest -q -m "not slow"    # 68 tests
+python -m pytest -q -m slow          # 4 tests, ~60 s
 ```
 
 The launch modes are alternatives, not steps. `scripts/dev_tres.py` takes ports 8001–8003; `sites.yaml` assigns the FLARE server `fed_learn_port: 8002` and `admin_port: 8003`. Stop `dev_tres.py` before starting the real federation or Docker: both start their own TREs.
@@ -82,7 +84,7 @@ python scripts/verify.py server/out/41174610ab2bece0/result.json
 scripts/up.sh --down
 ```
 
-`spec/examples/` holds allele frequency, a filtered variant, a safe-output rejection case, and federated linear regression.
+`spec/examples/` holds allele frequency, a filtered variant, a safe-output rejection case, federated linear regression, and federated logistic regression.
 </details>
 
 ## Results
@@ -130,7 +132,7 @@ tar xzf <tre_id>.tgz
 TRE_ID=<tre_id> TRE_API_URL=<api_url> CLIENT_KIT=$PWD/<tre_id> scripts/start_client.sh
 ```
 
-Re-run `python data/generate.py` to re-split the synthetic cohort for the new site count. A new API style needs one adapter class implementing four primitives and a registry entry; a different local variable name needs one `local:` mapping in `harmonisation/canonical.yaml` (unlisted sites use the canonical name).
+Re-run `python data/generate.py` to re-split the synthetic cohort for the new site count. A new API style needs one adapter class implementing five primitives and a registry entry; a different local variable name needs one `local:` mapping in `harmonisation/canonical.yaml` (unlisted sites use the canonical name).
 
 The intended final-demo topology is one client on Gefion, one on NextCloud, and the server on Brev or AWS: set `server.host` to the server FQDN, onboard each site, and ship the kits. This has not been run on remote hosts.
 
@@ -147,7 +149,7 @@ See the [documentation index](docs/README.md) for reference material, planning h
 2. **Dispatch** — the FLARE server sits outside every TRE. TREs dial out over gRPC/TLS, so secure environments expose no inbound ports.
 3. **Local execution** — each TRE runs a FLARE client with an adapter to its native REST, DataSHIELD/R, or SQL gateway. Compute happens where data is; record-level data never leaves.
 4. **Safe output** — each site filters results before they leave: aggregates only, small-count suppression (`k = min_cell_size`, default 5).
-5. **Aggregation** — the server combines site results into federated statistics; feature selection and logistic regression follow later.
+5. **Aggregation** — the server combines site results into federated statistics: sums for allele frequency, a Gram matrix or per-round FedAvg parameters for linear regression, per-round gradient/Hessian (Newton-Raphson) for logistic regression; feature selection follows later.
 6. **Disclosure check** — passing results are written to `released.json`; the release decision is recorded in the server release log. Flagged results enter the overseer queue for a human decision.
 
 | Component | Where | What it does |
@@ -156,7 +158,7 @@ See the [documentation index](docs/README.md) for reference material, planning h
 | Analysis spec | [`spec/analysis_spec.py`](spec/analysis_spec.py), [`spec/examples/`](spec/examples) | `analysis_type`, canonical `variables`, `filters`, `min_cell_size`, `project_id`, `outcome`. Hashed to key every log. |
 | Harmonisation | [`harmonisation/canonical.yaml`](harmonisation/canonical.yaml), [`docs/variables.md`](docs/variables.md) | canonical variable → local column per TRE (`age` = `alder` / `age_years` / `AGE`). |
 | Mock TREs | [`tres/rest`](tres/rest), [`tres/datashield`](tres/datashield), [`tres/sql`](tres/sql) | Three deliberately different APIs over the same kind of data. Each rejects row-level access on its own. |
-| Adapters | [`adapters/`](adapters) | One class per API style, four primitives (`count`, `describe`, `value_counts`, `gram`); `run(spec)` is shared. Discovered by name via [`adapters/registry.py`](adapters/registry.py). |
+| Adapters | [`adapters/`](adapters) | One class per API style, five primitives (`count`, `describe`, `value_counts`, `gram`, `irls_step`); `run(spec)` is shared. Discovered by name via [`adapters/registry.py`](adapters/registry.py). |
 | Safe Output | [`adapters/safe_output.py`](adapters/safe_output.py) | Runs **inside** the TRE before the FLARE client sees anything: project allow-list, aggregate allow-list, k-suppression, audit log. |
 | FLARE jobs | [`flare/app/`](flare/app) | Executor loads the adapter for its own `tre_id`; controllers broadcast, gather with `min_clients` + `wait_time`, merge. |
 | Server side | [`server/`](server) | Associative merge, N-aware disclosure check, overseer queue + release log. |
@@ -184,13 +186,13 @@ Milestones M0–M6 are implemented: three mock TREs behind different APIs, adapt
 | Mock TREs — `tres/rest`, `tres/datashield`, `tres/sql` | implemented, covered by tests |
 | Adapters, registry, safe-output filter, audit log | implemented, covered by tests |
 | Analysis spec and Safe Projects allow-list | implemented, covered by tests |
-| FLARE jobs — allele frequency, federated statistics, linear regression (exact and FedAvg) | implemented, simulator-tested |
+| FLARE jobs — allele frequency, federated statistics, linear regression (exact and FedAvg), logistic regression (Newton-Raphson/IRLS) | implemented, simulator-tested |
 | Server aggregation, disclosure check, overseer queue | implemented |
-| Allele frequency and federated OLS | verified against `data/ground_truth.json` |
+| Allele frequency, federated OLS, and federated logistic regression | verified against `data/ground_truth.json` |
 | Scale evidence — 3, 10, 50 and 100 simulated sites | `docs/scaling.png` |
 | Live (non-simulator) FLARE federation — provisioned server + clients, separate processes, mTLS | verified on one machine via `scripts/local_federation.sh` (see [Results](#results)) |
 | Docker: 7 images, isolated TRE networks, containerised FLARE server + clients | verified (`scripts/up.sh --flare`, jobs from inside `flare-server`, stopped container ⇒ `2/3 sites`) |
-| HTTP API — [`server/api.py`](server/api.py), [`server/analysis_service.py`](server/analysis_service.py) | implemented, covered by tests ([#24](https://github.com/collaborativebioinformatics/Bifrost/pull/24)). Applies the server disclosure check and overseer queue, and strips per-site contributions from its responses. Serves `/health`, `/allele-frequency`, `/linear-regression` |
+| HTTP API — [`server/api.py`](server/api.py), [`server/analysis_service.py`](server/analysis_service.py) | implemented, covered by tests ([#24](https://github.com/collaborativebioinformatics/Bifrost/pull/24)). Applies the server disclosure check and overseer queue, and strips per-site contributions from its responses. Serves `/health`, `/allele-frequency`, `/linear-regression`. Logistic regression is FLARE-only for now — it needs a multi-round loop, and this API's `analysis_service.analyse()` currently calls each adapter once. |
 | Researcher UI — [`frontend/`](frontend) | Next.js app merged ([#16](https://github.com/collaborativebioinformatics/Bifrost/pull/16)), one component test file with six cases. **Not yet connected to the API**: it calls routes including `/metadata`, `/run`, `/run/{id}`, `/overseer` and `/audit` on port 8500, none of which the API serves. Reconciling the two contracts is [#15](https://github.com/collaborativebioinformatics/Bifrost/issues/15), still open |
 
 ## Team

@@ -15,6 +15,7 @@ Site IDs follow `sites.yaml`: `hunt` (REST adapter), `gefion` (DataSHIELD-style)
 | `bmi` | Body mass index, 1 decimal. | continuous | kg/m² | `bmi_baseline` | `body_mass_index` | `BMI` |
 | `ldl` | LDL cholesterol, 2 decimals. | continuous | mmol/L | `ldl_kol` | `ldl_c` | `LDL_MMOL` |
 | `sbp` | Systolic blood pressure. Regression outcome, 1 decimal. | continuous | mmHg | `systolisk` | `sbp_mmhg` | `SBP` |
+| `case` | Disease case status, 0/1. Logistic regression outcome. | binary | — | `case_status` | `is_case` | `CASE_STATUS` |
 
 `sbp` resolves the `blood_pressure` target left open by the API architecture example — the implementation chose systolic. Which measurement protocol it represents (seated, mean of *n* readings) is still undefined.
 
@@ -54,6 +55,7 @@ Each per-site CSV carries a leading `row_id` column, which `tres/common.py:27` d
 4. The `sbp` measurement definition, and whether it is the outcome the team wants for the demo.
 5. Confirmation of `sex` as a binary `0`/`1` field, including how sites that record additional categories should map.
 6. Whether Brev is a data site, the aggregation server, or both.
+7. `case`'s local name at `brev` is `CASE_STATUS`, not `CASE` — `CASE` is a reserved word in DuckDB SQL and breaks the SQL TRE's queries. Worth keeping in mind when a real site proposes a local column name: it has to be a valid identifier in that site's own query engine, not just unique.
 
 ## Resources to review
 
