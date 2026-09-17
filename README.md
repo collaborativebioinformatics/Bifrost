@@ -191,7 +191,7 @@ Milestones M0–M6 are implemented: three mock TREs behind different APIs, adapt
 | Live (non-simulator) FLARE federation — provisioned server + clients, separate processes, mTLS | verified on one machine via `scripts/local_federation.sh` (see [Results](#results)) |
 | Docker: 7 images, isolated TRE networks, containerised FLARE server + clients | verified (`scripts/up.sh --flare`, jobs from inside `flare-server`, stopped container ⇒ `2/3 sites`) |
 | HTTP API — [`server/api.py`](server/api.py), [`server/analysis_service.py`](server/analysis_service.py) | implemented, covered by tests ([#24](https://github.com/collaborativebioinformatics/Bifrost/pull/24)). Applies the server disclosure check and overseer queue, and strips per-site contributions from its responses. Serves `/health`, `/allele-frequency`, `/linear-regression` |
-| Researcher UI — [`frontend/`](frontend) | Next.js app merged ([#16](https://github.com/collaborativebioinformatics/Bifrost/pull/16)), one component test. **Not yet connected to the API**: it calls `/metadata`, `/run`, `/run/{id}`, `/overseer` and `/audit` on port 8500, none of which the API serves. Reconciling the two contracts is [#15](https://github.com/collaborativebioinformatics/Bifrost/issues/15), still open |
+| Researcher UI — [`frontend/`](frontend) | Next.js app merged ([#16](https://github.com/collaborativebioinformatics/Bifrost/pull/16)), one component test file with six cases. **Not yet connected to the API**: it calls routes including `/metadata`, `/run`, `/run/{id}`, `/overseer` and `/audit` on port 8500, none of which the API serves. Reconciling the two contracts is [#15](https://github.com/collaborativebioinformatics/Bifrost/issues/15), still open |
 
 ## Team
 
