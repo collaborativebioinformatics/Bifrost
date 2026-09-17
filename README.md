@@ -59,7 +59,9 @@ Wait for `TREs running; Ctrl-C to stop`. Everything below runs from a second ter
 python scripts/run_local.py spec/examples/allele_freq.json
 ```
 
-**The same analysis through FLARE, in the simulator.** Every run writes the merged result to `server/out/<spec_hash>/result.json`. A sibling `released.json` appears only once the disclosure check passes or an overseer approves it, and that is what would actually leave the server. `verify.py` reads the merged result: it checks allele frequencies always, recomputing the truth over the reporting sites when coverage is partial, and adds means and OLS coefficients when every site reported. It exits non-zero on any deviation beyond `--tol`:
+**The same analysis through FLARE, in the simulator.** Every run writes the merged result to `server/out/<spec_hash>/result.json`. A sibling `released.json` is written only when the disclosure check passes or an overseer approves, and that is what would leave the server. Run directories are keyed by spec hash, so a `released.json` from an earlier run of the same spec survives a later flagged one — check `check.json` for the current decision.
+
+`verify.py` reads the merged result and compares whichever statistics are present against the pooled truth: allele frequencies even under partial coverage, with the truth recomputed over the reporting sites, and means and OLS coefficients only when every site reported. Statistics the filter suppressed are not checked, so a run that released nothing still reports `PASS`. It exits non-zero on any deviation beyond `--tol`:
 
 ```
 scripts/run_job.sh spec/examples/allele_freq.json
@@ -81,6 +83,8 @@ scripts/up.sh
 ```
 scripts/onboard_tre.sh <tre_id> [adapter] [api_url] [region]
 ```
+
+For a TRE outside the local Docker network, set `server.host` in `sites.yaml` to an address that TRE can actually reach **before** running this. The default `flare-server` is a Docker DNS name, and the client kit bakes in whatever address is set when it is packed.
 
 It writes `flare/kits/<tre_id>.tgz` and prints the one firewall rule the TRE needs — outbound TCP to the FLARE server, nothing inbound. The archive holds only the mTLS client kit, so the TRE host needs a checkout of this repository with its dependencies installed as well. There:
 
