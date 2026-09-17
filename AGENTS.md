@@ -23,10 +23,11 @@ Implemented:
 | Harmonisation | `harmonisation/canonical.yaml` (unlisted site ⇒ local name = canonical name) |
 | FLARE jobs | `flare/app/` — `controller.py`/`executor.py` (allele_freq, fed_stats, exact fed_linreg), `linreg_controller.py`/`linreg_executor.py`/`linreg.py` (FedAvg fed_linreg). `scripts/build_job.py` assembles a job folder; `flare/jobs/` is generated and gitignored |
 | Server side | `server/aggregate.py` (associative merge), `server/disclosure_check.py`, `server/overseer_queue.py` (CLI); outputs under `server/out/` (gitignored, `SERVER_OUT` env) |
+| Researcher UI | `frontend/` — Next.js researcher, overseer, and audit workspace;  the API surface documented in `frontend/README.md` |
 | Ops scripts | `scripts/local_federation.sh` (real FLARE, no Docker), `scripts/provision.sh`, `scripts/onboard_tre.sh`, `scripts/start_server.sh`, `scripts/start_client.sh`, `scripts/run_job.py` (`--mode simulator|prod`, `--fedavg`), `scripts/run_local.py`, `scripts/verify.py`, `scripts/scale_sim.py` → `docs/scaling.png` |
 | Tests | `tests/` — 31 fast + 3 FLARE-simulator (`-m slow`) |
 
-A real (non-simulator) FLARE federation — provisioned server + clients as separate processes over mTLS — runs on one machine with `scripts/local_federation.sh`; all example specs, the overseer flow and a dead-client run were verified on it. Not implemented: UI. Not yet run anywhere: the Docker path (`scripts/up.sh`, images) — no Docker on the development machine.
+A real (non-simulator) FLARE federation — provisioned server + clients as separate processes over mTLS — runs on one machine with `scripts/local_federation.sh`; all example specs, the overseer flow and a dead-client run were verified on it. The Next.js UI is implemented in `frontend/`; the Python API service exposing its documented contract remains separate. Not yet run anywhere: the Docker path (`scripts/up.sh`, images) — no Docker on the development machine.
 
 Known discrepancies — do not treat these as existing:
 
