@@ -1,4 +1,4 @@
-FROM quay.io/condaforge/miniforge3:26.7.2-0
+FROM quay.io/condaforge/miniforge3:26.3.2-3
 
 ENV TZ=Europe
 ENV DEBIAN_FRONTEND=noninteractive
