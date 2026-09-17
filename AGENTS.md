@@ -26,7 +26,7 @@ Implemented:
 | Ops scripts | `scripts/local_federation.sh` (real FLARE, no Docker), `scripts/provision.sh`, `scripts/onboard_tre.sh`, `scripts/start_server.sh`, `scripts/start_client.sh`, `scripts/run_job.py` (`--mode simulator|prod`, `--fedavg`), `scripts/run_local.py`, `scripts/verify.py`, `scripts/scale_sim.py` → `docs/scaling.png` |
 | Tests | `tests/` — 31 fast + 3 FLARE-simulator (`-m slow`) |
 
-A real (non-simulator) FLARE federation — provisioned server + clients as separate processes over mTLS — runs on one machine with `scripts/local_federation.sh`; all example specs, the overseer flow and a dead-client run were verified on it. Not implemented: UI. Not yet run anywhere: the Docker path (`scripts/up.sh`, images) — no Docker on the development machine.
+A real (non-simulator) FLARE federation runs two ways and both are verified: `scripts/local_federation.sh` (separate processes on one machine) and Docker (`scripts/provision.sh && scripts/up.sh --flare`, then `docker compose exec flare-server python scripts/run_job.py --mode prod ...`): images build, TREs are internet-isolated, clients register over mTLS, all example specs pass, a stopped `flare-brev` container yields `2/3 sites`. Not implemented: UI. Not yet run: clients on remote hosts (Gefion / NextCloud).
 
 Known discrepancies — do not treat these as existing:
 
@@ -50,7 +50,7 @@ Checks that exist and were confirmed working on 2026-09-17:
 - `scripts/local_federation.sh up && scripts/local_federation.sh job spec/examples/allele_freq.json` — real FLARE server + 3 clients on localhost; ~12 s per job.
 - `scripts/scale_sim.py` — N ∈ {3, 10, 50, 100} clients, exact at every N; ~2 min.
 - `scripts/onboard_tre.sh <id>` — adds a site, regenerates, provisions, packs a kit (~2 s).
-- `scripts/up.sh` — builds and starts all TREs, then checks each one's `/health` endpoint from its own FLARE client container and asserts that no TRE container can reach the public internet. Requires Docker; not run during this check.
+- `scripts/provision.sh && scripts/up.sh --flare` — builds 7 images (~5 min cold), starts everything, checks each TRE's `/health` from its own FLARE client container, asserts no TRE container can reach the public internet. Then `docker compose exec flare-server python scripts/run_job.py --mode prod --admin-kit "/workspace/federated_apis/prod_00/admin@ncfh.org" spec/examples/allele_freq.json` (~11 s) and `python scripts/verify.py server/out/<spec_hash>/result.json` on the host. Verified 2026-09-17 with Docker Desktop 29.8 on macOS.
 
 CI: `.github/workflows/ci.yml` runs `python -m pytest -q -m "not slow"` on every push and pull request, against Python 3.11 and 3.12. No linter or formatter is configured.
 
