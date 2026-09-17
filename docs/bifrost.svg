@@ -1,37 +1,37 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="840" viewBox="0 0 1280 840" role="img" aria-labelledby="title desc">
   <title id="title">Bifrost</title>
-  <desc id="desc">A luminous teal-to-violet bridge joining two shores above a widely spaced Bifrost wordmark. Transparent background, for light backgrounds.</desc>
+  <desc id="desc">A luminous teal-to-violet bridge joining two shores above a widely spaced Bifrost wordmark. Transparent background, for dark backgrounds.</desc>
   <defs>
     <linearGradient id="spectrum" x1="200" y1="462" x2="1080" y2="200" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0FA592"/>
-      <stop offset=".38" stop-color="#2FD1BA"/>
-      <stop offset=".66" stop-color="#6FE3DE"/>
-      <stop offset=".86" stop-color="#7FB0F0"/>
-      <stop offset="1" stop-color="#9B8CF5"/>
+      <stop stop-color="#12B5A0"/>
+      <stop offset=".38" stop-color="#4BE3CF"/>
+      <stop offset=".66" stop-color="#A9F2F0"/>
+      <stop offset=".86" stop-color="#9CC4F5"/>
+      <stop offset="1" stop-color="#A9A4FF"/>
     </linearGradient>
     <linearGradient id="inner" x1="270" y1="462" x2="1010" y2="240" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0A7F75"/>
-      <stop offset=".62" stop-color="#2BB5A6"/>
-      <stop offset="1" stop-color="#6C93DA"/>
+      <stop stop-color="#0FA394"/>
+      <stop offset=".62" stop-color="#3DD1C1"/>
+      <stop offset="1" stop-color="#86AEEC"/>
     </linearGradient>
     <linearGradient id="deck" x1="110" y1="0" x2="1170" y2="0" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#12A893"/>
-      <stop offset=".5" stop-color="#3FD9C4"/>
-      <stop offset="1" stop-color="#6A9AE6"/>
+      <stop stop-color="#2BC4AE"/>
+      <stop offset=".5" stop-color="#E6FFF8"/>
+      <stop offset="1" stop-color="#8FB8F0"/>
     </linearGradient>
     <linearGradient id="cables" x1="0" y1="200" x2="0" y2="470" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#3FBFAF" stop-opacity=".6"/>
-      <stop offset="1" stop-color="#3FBFAF" stop-opacity=".1"/>
+      <stop stop-color="#7FE0D2" stop-opacity=".7"/>
+      <stop offset="1" stop-color="#7FE0D2" stop-opacity=".1"/>
     </linearGradient>
     <linearGradient id="word" x1="180" y1="0" x2="1100" y2="0" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0E1A2B"/>
-      <stop offset=".55" stop-color="#0F3D4A"/>
-      <stop offset="1" stop-color="#1E2A5E"/>
+      <stop stop-color="#FFFFFF"/>
+      <stop offset=".55" stop-color="#E9FFFA"/>
+      <stop offset="1" stop-color="#E4E9FF"/>
     </linearGradient>
     <linearGradient id="rule" x1="540" y1="0" x2="740" y2="0" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0FA592"/>
-      <stop offset=".5" stop-color="#2FD1BA"/>
-      <stop offset="1" stop-color="#9B8CF5"/>
+      <stop stop-color="#12B5A0"/>
+      <stop offset=".5" stop-color="#4BE3CF"/>
+      <stop offset="1" stop-color="#A9A4FF"/>
     </linearGradient>
     <filter id="glow" x="-15%" y="-40%" width="130%" height="180%" color-interpolation-filters="sRGB">
       <feGaussianBlur stdDeviation="22"/>
@@ -48,14 +48,14 @@
   </defs>
 
   <!-- Soft light bleed behind the span and deck -->
-  <g fill="none" stroke-linecap="round" filter="url(#glow)" opacity=".45">
+  <g fill="none" stroke-linecap="round" filter="url(#glow)" opacity=".6">
     <path d="M 200,462 C 252,50 1028,50 1080,462" stroke="url(#spectrum)" stroke-width="54"/>
     <path d="M110 470H1170" stroke="url(#deck)" stroke-width="26"/>
   </g>
 
   <!-- Three nested spans form the bridge emblem -->
   <g fill="none" stroke-linecap="round">
-    <path d="M 320,462 C 368,200 912,200 960,462" stroke="#3FBFAF" stroke-opacity=".35" stroke-width="3"/>
+    <path d="M 320,462 C 368,200 912,200 960,462" stroke="#7FE0D2" stroke-opacity=".35" stroke-width="3"/>
     <path d="M370 300V470 M460 252V470 M550 228V470 M640 220V470 M730 228V470 M820 252V470 M910 300V470" stroke="url(#cables)" stroke-width="3"/>
     <path d="M 270,462 C 318,140 962,140 1010,462" stroke="url(#inner)" stroke-width="16"/>
     <path d="M 200,462 C 252,50 1028,50 1080,462" stroke="url(#spectrum)" stroke-width="38"/>
@@ -63,17 +63,17 @@
       <path d="M 200,462 C 252,50 1028,50 1080,462" transform="translate(0 -9)" stroke="#fff" stroke-opacity=".28" stroke-width="9"/>
     </g>
     <path d="M110 470H1170" stroke="url(#deck)" stroke-width="18"/>
-    <path d="M175 505H325 M955 505H1105" stroke="#3FBFAF" stroke-opacity=".35" stroke-width="3"/>
+    <path d="M175 505H325 M955 505H1105" stroke="#7FE0D2" stroke-opacity=".35" stroke-width="3"/>
     <path d="M200 470V532 M1080 470V532" stroke="url(#deck)" stroke-width="20"/>
   </g>
 
   <!-- Shore lights -->
-  <circle cx="110" cy="470" r="26" fill="#5FE3D0" fill-opacity=".5" filter="url(#glowSm)"/>
-  <circle cx="1170" cy="470" r="26" fill="#5FE3D0" fill-opacity=".5" filter="url(#glowSm)"/>
-  <circle cx="110" cy="470" r="11" fill="#14B8A6"/>
-  <circle cx="1170" cy="470" r="11" fill="#14B8A6"/>
+  <circle cx="110" cy="470" r="26" fill="#8FEFDF" fill-opacity=".5" filter="url(#glowSm)"/>
+  <circle cx="1170" cy="470" r="26" fill="#8FEFDF" fill-opacity=".5" filter="url(#glowSm)"/>
+  <circle cx="110" cy="470" r="11" fill="#E4FDF6"/>
+  <circle cx="1170" cy="470" r="11" fill="#E4FDF6"/>
 
-  
+  <text x="656" y="716" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="144" font-weight="500" letter-spacing="32" fill="#7FE6D8" fill-opacity=".35" filter="url(#glowText)">BIFROST</text>
   <text x="656" y="716" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="144" font-weight="500" letter-spacing="32" fill="url(#word)">BIFROST</text>
   <path d="M540 770H740" stroke="url(#rule)" stroke-width="4" stroke-linecap="round"/>
 </svg>
