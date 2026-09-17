@@ -4,6 +4,97 @@ Named after the guarded bridge between realms in Norse myth: a single crossing t
 
 Cross-TRE federated analysis: run an analysis across several Trusted Research Environments (TREs) without moving any record-level data. Each TRE computes locally behind its own native API and returns only disclosure-checked aggregates; the orchestrator combines them.
 
+## Status
+
+Milestones M0–M5 are implemented: three mock TREs behind different APIs, adapters that normalise them, FLARE jobs, server-side aggregation with disclosure control, and scale evidence up to 100 simulated sites.
+
+| Component | State |
+| --- | --- |
+| Mock TREs — `tres/rest`, `tres/datashield`, `tres/sql` | implemented, covered by tests |
+| Adapters, registry, safe-output filter, audit log | implemented, covered by tests |
+| Analysis spec and Safe Projects allow-list | implemented, covered by tests |
+| FLARE jobs — allele frequency, federated statistics, linear regression (exact and FedAvg) | implemented, simulator-tested |
+| Server aggregation, disclosure check, overseer queue | implemented |
+| Allele frequency and federated OLS | verified against `data/ground_truth.json` |
+| Scale evidence — 3, 10, 50 and 100 simulated sites | `docs/scaling.png` |
+| Run against real Docker containers or a live FLARE server | not yet performed |
+| Interface for non-technical users | not started |
+
+Everything verified so far runs either in-process or through the FLARE simulator. Nobody has yet run the stack against real Docker containers or a non-simulator FLARE server.
+
+## Running it
+
+Needs Python 3.11 or 3.12, run from the repository root.
+
+**Install:**
+
+```
+pip install -e ".[dev]"
+```
+
+**Generate the synthetic data.** The per-site CSVs are gitignored, and `scripts/up.sh` only regenerates them when `data/ground_truth.json` is absent — which it never is, because that file is tracked. So run this explicitly on a fresh checkout, before any launch path below:
+
+```
+python data/generate.py
+```
+
+**Tests.** The fast suite needs no network. The FLARE simulator suite is marked `slow` and needs `nvflare` installed:
+
+```
+python -m pytest -q -m "not slow"    # 31 tests
+python -m pytest -q -m slow          # 3 tests, ~50 s
+```
+
+**Start the TREs.** Each runs as a local uvicorn process on ports 8001 upwards. In its own terminal, since it stays in the foreground until Ctrl-C:
+
+```
+python scripts/dev_tres.py
+```
+
+Wait for `TREs running; Ctrl-C to stop`. Everything below runs from a second terminal.
+
+**One analysis across all three, without FLARE:**
+
+```
+python scripts/run_local.py spec/examples/allele_freq.json
+```
+
+**The same analysis through FLARE, in the simulator.** Every run writes the merged result to `server/out/<spec_hash>/result.json`. A sibling `released.json` is written only when the disclosure check passes or an overseer approves, and that is what would leave the server. Run directories are keyed by spec hash, so a `released.json` from an earlier run of the same spec survives a later flagged one — check `check.json` for the current decision.
+
+`verify.py` reads the merged result and compares whichever statistics are present against the pooled truth: allele frequencies even under partial coverage, with the truth recomputed over the reporting sites, and means and OLS coefficients only when every site reported. Statistics the filter suppressed are not checked, so a run that released nothing still reports `PASS`. It exits non-zero on any deviation beyond `--tol`:
+
+```
+scripts/run_job.sh spec/examples/allele_freq.json
+python scripts/verify.py server/out/<spec_hash>/result.json
+```
+
+**With Docker** — builds the TRE containers, checks each one's health endpoint from its own client container, and asserts that no TRE can reach the public internet:
+
+```
+scripts/up.sh
+```
+
+`spec/examples/` holds four specs: allele frequency, a filtered variant, one the safe-output filter is meant to reject, and federated linear regression.
+
+## Adding a TRE
+
+`sites.yaml` is the only place sites are listed; `docker-compose.yml` and `flare/project.yml` are generated from it. One command registers a site, regenerates both, provisions the project CA and packs an mTLS client kit:
+
+```
+scripts/onboard_tre.sh <tre_id> [adapter] [api_url] [region]
+```
+
+For a TRE outside the local Docker network, set `server.host` in `sites.yaml` to an address that TRE can actually reach **before** running this. The default `flare-server` is a Docker DNS name, and the client kit bakes in whatever address is set when it is packed.
+
+It writes `flare/kits/<tre_id>.tgz` and prints the one firewall rule the TRE needs — outbound TCP to the FLARE server, nothing inbound. The archive holds only the mTLS client kit, so the TRE host needs a checkout of this repository with its dependencies installed as well. There:
+
+```
+tar xzf <tre_id>.tgz
+TRE_ID=<tre_id> TRE_API_URL=<api_url> CLIENT_KIT=$PWD/<tre_id> scripts/start_client.sh
+```
+
+Re-run `python data/generate.py` afterwards to re-split the synthetic cohort across the new site count.
+
 ## Team
 
 - Ioannis Christofilogiannis
@@ -31,6 +122,8 @@ Diagram source: [flowchart.drawio](https://drive.google.com/file/d/1j9t8W-cFVBYg
 6. **Disclosure check** — passing results plus an audit log are published; failures are rejected and the spec is refined.
 
 ## Goals
+
+These are the project's targets, not a description of what runs today — see [Status](#status) for that.
 
 ### 0. Simulate TREs
 - with various levels of security
@@ -98,3 +191,7 @@ ML jobs:
 
 ### X. Nice interface
 - User interface that allows API Usage for non-technical users
+
+## License
+
+Released under the [MIT License](LICENSE).
