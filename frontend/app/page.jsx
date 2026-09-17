@@ -1,0 +1,84 @@
+'use client'
+
+import { useEffect, useMemo, useState } from 'react'
+import {
+  Activity, BarChart3, Check, CircleHelp, Database, Download, FileClock,
+  FlaskConical, GitBranch, Info, LockKeyhole, Play, RefreshCw, ShieldCheck,
+  Table2, Waypoints, X,
+} from 'lucide-react'
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8500'
+const fallbackMetadata = {
+  projects: [{ id: 'ncfh-2026-demo' }, { id: 'hackathon-test' }],
+  variables: [
+    { name: 'age', type: 'continuous' }, { name: 'sex', type: 'binary' },
+    { name: 'bmi', type: 'continuous' }, { name: 'sbp', type: 'continuous' },
+    ...Array.from({ length: 20 }, (_, index) => ({ name: `snp_rs${String(index + 1).padStart(3, '0')}`, type: 'genotype' })),
+  ],
+  examples: ['allele_freq.json', 'allele_freq_filtered.json', 'allele_freq_rejected.json', 'fed_linreg.json'],
+  sites: [{ tre_id: 'hunt', adapter: 'rest', region: 'NO' }, { tre_id: 'gefion', adapter: 'datashield', region: 'NO' }, { tre_id: 'brev', adapter: 'sql', region: 'NO' }],
+}
+
+async function api(path, options) {
+  const response = await fetch(`${API_BASE}${path}`, { ...options, headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) } })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body.detail || body.message || `API returned ${response.status}`)
+  return body
+}
+
+function Stat({ label, value, detail, accent = '' }) {
+  return <div className={`stat-card ${accent}`}><span>{label}</span><strong>{value}</strong><small>{detail}</small></div>
+}
+
+function ResultView({ result }) {
+  const stats = result?.result || result || {}
+  const rows = Object.entries(stats.stats || {}).flatMap(([variable, value]) => Object.entries(value || {}).map(([metric, output]) => ({ variable, metric, output })))
+  const rejected = Object.entries(stats.rejected_per_site || {}).flatMap(([site, items]) => (items || []).map((item) => ({ site, item })))
+  const sites = Object.entries(stats.n_per_site || {})
+  const coverage = stats.coverage || `${stats.sites_reported?.length || 0}/${stats.sites_expected?.length || 0} sites`
+  const decision = result?.decision || result?.check?.decision || (result?.status === 'complete' ? 'RESULT AVAILABLE' : 'RUNNING')
+  return <><div className="results-heading"><div><span className="panel-kicker">Step 3</span><h2>Federated result</h2><p>Spec hash: <strong>{result?.spec_hash || result?.run?.spec_hash || stats.spec_hash || 'pending'}</strong></p></div><span className={`result-status ${decision === 'REJECTED' || decision === 'FLAGGED' ? 'danger' : ''}`}>{decision === 'REJECTED' || decision === 'FLAGGED' ? <X size={15} /> : <Check size={15} />} {decision}</span></div><div className="results-card"><div className="result-stats"><Stat label="Coverage" value={coverage} detail={`${(stats.sites_missing || []).length} missing`} accent="blue-accent" /><Stat label="Records analysed" value={stats.n ?? '—'} detail="aggregate only" /><Stat label="Disclosure items" value={rejected.length} detail={rejected.length ? 'held for review' : 'none rejected'} accent={rejected.length ? 'warning-accent' : ''} /></div>{rows.length ? <div className="table-wrap"><table><thead><tr><th>Variable</th><th>Statistic</th><th>Released value</th></tr></thead><tbody>{rows.map((row, index) => <tr key={`${row.variable}-${row.metric}-${index}`}><td><strong>{row.variable}</strong></td><td>{row.metric}</td><td>{typeof row.output === 'object' ? JSON.stringify(row.output) : String(row.output)}</td></tr>)}</tbody></table></div> : <div className="empty-state"><Info size={18} /> The API returned no released statistics for this run.</div>}{sites.length ? <div className="site-summary"><strong>Per-site coverage</strong>{sites.map(([site, count]) => <span key={site}>{site}: {count}</span>)}{(stats.sites_missing || []).map((site) => <span className="missing-site" key={site}>{site}: missing</span>)}</div> : null}{rejected.length ? <div className="rejected-list"><strong>Suppressed or rejected items</strong>{rejected.map((item, index) => <span key={`${item.site}-${index}`}><X size={13} /> {item.site}: {item.item}</span>)}</div> : null}</div></>
+}
+
+export default function Home() {
+  const [view, setView] = useState('analysis')
+  const [metadata, setMetadata] = useState(fallbackMetadata)
+  const [analysisType, setAnalysisType] = useState('allele_freq')
+  const [variables, setVariables] = useState(['snp_rs001'])
+  const [outcome, setOutcome] = useState('sbp')
+  const [rounds, setRounds] = useState(0)
+  const [projectId, setProjectId] = useState('ncfh-2026-demo')
+  const [minCell, setMinCell] = useState(5)
+  const [filterRows, setFilterRows] = useState([{ variable: '', op: 'eq', value: '' }])
+  const [example, setExample] = useState('')
+  const [runId, setRunId] = useState('')
+  const [run, setRun] = useState(null)
+  const [pending, setPending] = useState([])
+  const [audit, setAudit] = useState([])
+  const [notice, setNotice] = useState('')
+  const [running, setRunning] = useState(false)
+  const [metadataError, setMetadataError] = useState(false)
+
+  useEffect(() => { api('/metadata').then(setMetadata).catch(() => setMetadataError(true)) }, [])
+  useEffect(() => {
+    if (!runId) return undefined
+    let timer
+    const poll = async () => { try { const next = await api(`/run/${runId}`); setRun(next); if (!['queued', 'running', 'pending'].includes(next.status)) { setRunning(false); clearInterval(timer) } } catch (error) { setNotice(error.message); setRunning(false); clearInterval(timer) } }
+    timer = setInterval(poll, 1200); poll()
+    return () => clearInterval(timer)
+  }, [runId])
+  useEffect(() => { if (view === 'overseer') api('/overseer').then((body) => setPending(body.items || body || [])).catch((error) => setNotice(error.message)); if (view === 'audit') api('/audit').then((body) => setAudit(body.items || body || [])).catch((error) => setNotice(error.message)) }, [view])
+
+  const genotypeVariables = useMemo(() => metadata.variables.filter((variable) => variable.type === 'genotype'), [metadata])
+  const phenotypeVariables = useMemo(() => metadata.variables.filter((variable) => variable.type !== 'genotype'), [metadata])
+  const isRegression = analysisType === 'fed_linreg'
+  function toggleVariable(name) { setVariables((current) => current.includes(name) ? current.filter((item) => item !== name) : [...current, name]) }
+  function updateFilter(index, key, value) { setFilterRows((rows) => rows.map((row, rowIndex) => rowIndex === index ? { ...row, [key]: value } : row)) }
+  function loadExample(value) { setExample(value); if (!value) return; api(`/examples/${value}`).then((spec) => { setAnalysisType(spec.analysis_type); setVariables(spec.variables || []); setProjectId(spec.project_id); setOutcome(spec.outcome || 'sbp'); setMinCell(spec.min_cell_size || 5); setRounds(spec.fedavg_rounds || 0); setFilterRows(Object.entries(spec.filters || {}).map(([variable, filter]) => ({ variable, op: filter.op, value: filter.value })) || [{ variable: '', op: 'eq', value: '' }]) }).catch((error) => setNotice(error.message)) }
+  async function submitRun(event) { event.preventDefault(); setRunning(true); setRun(null); setNotice('Submitting analysis to Bifrost...'); const filters = Object.fromEntries(filterRows.filter((row) => row.variable && row.value !== '').map((row) => [row.variable, { op: row.op, value: row.value }])); try { const body = await api('/run', { method: 'POST', body: JSON.stringify({ analysis_type: analysisType, variables, filters, min_cell_size: Number(minCell), project_id: projectId, ...(isRegression ? { outcome, fedavg_rounds: Number(rounds) } : {}) }) }); setRunId(body.run_id || body.id); setNotice('Run submitted. Waiting for TRE responses...') } catch (error) { setNotice(error.message); setRunning(false) } }
+  async function decide(item, decision) { try { await api(`/overseer/${item.id || item.spec_hash}/${decision}`, { method: 'POST', body: JSON.stringify({ note: item.note || '' }) }); setPending((items) => items.filter((entry) => entry !== item)); setNotice(`Result ${decision}d.`) } catch (error) { setNotice(error.message) } }
+
+  return <main className="shell"><header className="topbar"><div className="brand-lockup"><div className="brand-mark"><Waypoints size={25} /></div><div><strong>BIFROST</strong><span>Federated analysis gateway</span></div></div><div className="top-actions"><span className="secure-pill"><LockKeyhole size={14} /> Secure session</span><CircleHelp size={19} /><div className="avatar">RW</div></div></header><div className="workspace"><aside className="sidebar"><div className="side-label">Researcher menu</div><nav><button className={`nav-item ${view === 'analysis' ? 'active' : ''}`} onClick={() => setView('analysis')}><BarChart3 size={18} /> Analysis</button><button className={`nav-item ${view === 'overseer' ? 'active' : ''}`} onClick={() => setView('overseer')}><ShieldCheck size={18} /> Overseer queue</button><button className={`nav-item ${view === 'audit' ? 'active' : ''}`} onClick={() => setView('audit')}><FileClock size={18} /> Audit logs</button></nav><div className="sidebar-bottom"><div className="side-label">System status</div><div className="system-status"><i /> API connected</div><small>{metadataError ? 'Metadata endpoint unavailable' : 'Ready for a new run'}</small></div></aside><section className="content">
++    {view === 'analysis' ? <><div className="page-heading"><div><div className="eyebrow">Bifrost / Analysis workspace</div><h1>Cross-TRE analysis</h1><p>Build a request, run it across connected environments, and inspect disclosure-safe output.</p></div><button className="outline-button" onClick={() => run && navigator.clipboard?.writeText(JSON.stringify(run, null, 2))}><Download size={16} /> Copy result JSON</button></div><div className="notice"><Info size={18} /><div><strong>Record-level data stays inside each TRE.</strong><span>Only aggregate statistics and model information pass through the gateway.</span></div></div><form onSubmit={submitRun}><div className="analysis-switcher"><button type="button" className={analysisType === 'allele_freq' ? 'selected' : ''} onClick={() => setAnalysisType('allele_freq')}><FlaskConical size={18} /><span><strong>Allele frequency</strong><small>Federated analysis</small></span></button><button type="button" className={isRegression ? 'selected' : ''} onClick={() => setAnalysisType('fed_linreg')}><GitBranch size={18} /><span><strong>Linear regression</strong><small>Federated learning</small></span></button></div><div className="grid-layout"><section className="panel setup-panel"><div className="panel-heading"><div><span className="panel-kicker">Step 1</span><h2>Define your analysis</h2></div><select className="example-select" value={example} onChange={(event) => loadExample(event.target.value)}><option value="">Load example...</option>{metadata.examples.map((item) => <option key={item} value={item}>{item}</option>)}</select></div><label>Safe project<select value={projectId} onChange={(event) => setProjectId(event.target.value)}>{metadata.projects.map((project) => <option key={project.id} value={project.id}>{project.id}</option>)}</select></label><fieldset><legend>Genotype variables</legend><div className="checkbox-grid">{genotypeVariables.map((variable) => <label className="check-label" key={variable.name}><input type="checkbox" checked={variables.includes(variable.name)} onChange={() => toggleVariable(variable.name)} />{variable.name}</label>)}</div></fieldset><fieldset><legend>Phenotype variables</legend><div className="checkbox-grid">{phenotypeVariables.map((variable) => <label className="check-label" key={variable.name}><input type="checkbox" checked={variables.includes(variable.name)} onChange={() => toggleVariable(variable.name)} />{variable.name}</label>)}</div></fieldset>{isRegression ? <div className="field-row"><label>Outcome<select value={outcome} onChange={(event) => setOutcome(event.target.value)}>{phenotypeVariables.map((variable) => <option key={variable.name} value={variable.name}>{variable.name}</option>)}</select></label><label>FedAvg rounds<input type="number" min="0" value={rounds} onChange={(event) => setRounds(event.target.value)} /><small className="field-help">0 = exact aggregation</small></label></div> : null}<div className="field-row"><label>Minimum cell size<input type="number" min="1" value={minCell} onChange={(event) => setMinCell(event.target.value)} /></label><label>Selected variables<input value={variables.join(', ')} readOnly /></label></div><fieldset><legend>Optional filters</legend>{filterRows.map((row, index) => <div className="filter-row" key={index}><select value={row.variable} onChange={(event) => updateFilter(index, 'variable', event.target.value)}><option value="">Variable</option>{metadata.variables.map((variable) => <option key={variable.name} value={variable.name}>{variable.name}</option>)}</select><select value={row.op} onChange={(event) => updateFilter(index, 'op', event.target.value)}><option value="eq">equals</option><option value="gt">greater than</option><option value="lt">less than</option></select><input value={row.value} placeholder="Value" onChange={(event) => updateFilter(index, 'value', event.target.value)} /></div>)}<button type="button" className="link-button" onClick={() => setFilterRows((rows) => [...rows, { variable: '', op: 'eq', value: '' }])}>+ Add filter</button></fieldset><button className="run-button" disabled={running || !variables.length}>{running ? <RefreshCw className="spin" size={17} /> : <Play size={17} fill="currentColor" />}{running ? 'Running analysis...' : 'Run federated analysis'}</button></section><section className="panel sites-panel"><div className="panel-heading"><div><span className="panel-kicker">Step 2</span><h2>Connected TREs</h2></div><span className="connection-count"><i /> {metadata.sites.length || '—'} online</span></div><div className="site-list">{metadata.sites.length ? metadata.sites.map((site) => <div className="site-row" key={site.tre_id || site.name}><div className="site-icon"><Database size={17} /></div><div className="site-info"><strong>{site.tre_id || site.name}</strong><span>{site.adapter || 'adapter'} · {site.region || 'connected'}</span></div><span className="site-state"><Check size={13} /> Ready</span></div>) : <div className="empty-state">Site metadata is supplied by the API at run time.</div>}</div><div className="site-footer"><ShieldCheck size={15} /> Disclosure policy: k ≥ {minCell} · TLS enabled</div></section></div></form><section className="results-section">{run ? <ResultView result={run} /> : <div className="empty-results"><Activity size={20} /><strong>{notice || 'Your federated result will appear here.'}</strong><span>Every run gets a visible spec hash and disclosure decision.</span></div>}</section></> : view === 'overseer' ? <><div className="page-heading"><div><div className="eyebrow">Bifrost / Governance</div><h1>Overseer queue</h1><p>Review outputs held for a human release decision.</p></div></div><div className="panel queue-panel">{pending.length ? pending.map((item) => <div className="queue-row" key={item.id || item.spec_hash}><div><strong>Spec hash: {item.spec_hash}</strong><span>{item.reason || item.reasons?.join(', ') || 'Disclosure review required'}</span><small>{item.tre_id || 'Federated result'}</small></div><div className="queue-actions"><button className="approve-button" onClick={() => decide(item, 'approve')}><Check size={15} /> Approve</button><button className="reject-button" onClick={() => decide(item, 'reject')}><X size={15} /> Reject</button></div></div>) : <div className="empty-state"><Check size={18} /> No results are waiting for release.</div>}</div></> : <><div className="page-heading"><div><div className="eyebrow">Bifrost / Governance</div><h1>Audit logs</h1><p>Per-site activity keyed by spec hash.</p></div></div><div className="panel audit-panel">{audit.length ? <div className="table-wrap"><table><thead><tr><th>Time</th><th>Site</th><th>Spec hash</th><th>Decision</th><th>Released</th></tr></thead><tbody>{audit.map((entry, index) => <tr key={index}><td>{entry.timestamp || entry.time}</td><td>{entry.tre_id || entry.site}</td><td><strong>{entry.spec_hash}</strong></td><td>{entry.decision}</td><td>{JSON.stringify(entry.released || {})}</td></tr>)}</tbody></table></div> : <div className="empty-state"><FileClock size={18} /> No audit entries returned.</div>}</div></>}
++    <footer className="page-footer"><span><Table2 size={15} /> Output contains aggregates only</span><span>{notice || `API: ${API_BASE}`}</span></footer></section></div></main>
+}
