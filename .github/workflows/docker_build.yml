@@ -53,7 +53,7 @@ jobs:
           load: true
           tags: ${{ env.LATEST_TAG }}
           file:
-            ./dockerfiles/bifrost/Dockerfile
+            ./Dockerfile
           platforms: linux/amd64
 
       - name: Run unit tests
@@ -79,5 +79,5 @@ jobs:
           push: False
           tags: ${{ steps.meta.outputs.tags }}
           file:
-            ./dockerfiles/bifrost/Dockerfile
-          platforms: linux/amd64,linux/arm64
+            ./Dockerfile
+          platforms: linux/amd64
