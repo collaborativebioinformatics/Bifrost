@@ -126,7 +126,7 @@ Round time 11.9 s (job submit → merged result), of which the federated round i
 
 FedAvg convergence (max |β − truth|): round 1 3.5e-1 → round 3 1.9e-3 → round 5 7.3e-6 → round 10 2.2e-11. With `--local-steps 5` the run converges to the *wrong* point (err ≈ 2.4e-2) — the classic non-IID FedAvg bias, kept as a test ([`tests/test_m4_linreg.py`](tests/test_m4_linreg.py)).
 
-Both modes use the same adapters: each site's adapter returns the Gram matrix `[1, y, X]ᵀ[1, y, X]` (an allow-listed aggregate). In FedAvg mode the FLARE client keeps that matrix inside the TRE: at initialisation a site sends `{n, features, sum, sum_sq}` so the server can fix one global standardisation, and each training round it sends `{n, β}` — p+1 parameters. Local training is full-batch gradient steps on the site's own sufficient statistics (same update as `SGDRegressor.partial_fit` on that site's rows, without the rows).
+Both modes use the same adapters: each site's adapter returns the Gram matrix `[1, y, X]ᵀ[1, y, X]` (an allow-listed aggregate). In FedAvg mode the FLARE client keeps that matrix inside the TRE: at initialisation a site sends `{n, features, sum, sum_sq}` so the server can fix one global standardisation, and each training round it sends the p+1 model coefficients β plus the sample count n. Local training is full-batch gradient steps on the site's own sufficient statistics (same update as `SGDRegressor.partial_fit` on that site's rows, without the rows).
 
 ### Suppression, overseer, straggler
 
