@@ -17,3 +17,9 @@ notes/
 flare/jobs/
 flare/kits/
 .local_fed/
+*.csv
+*.bed
+*.bim
+*.fam
+*_geno.*
+site*_nordik_sim.*
