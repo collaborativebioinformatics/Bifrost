@@ -4,6 +4,47 @@ Named after the guarded bridge between realms in Norse myth: a single crossing t
 
 Cross-TRE federated analysis: run an analysis across several Trusted Research Environments (TREs) without moving any record-level data. Each TRE computes locally behind its own native API and returns only disclosure-checked aggregates; the orchestrator combines them.
 
+## Status
+
+The local pipeline runs without FLARE: three mock TREs speaking different APIs, adapters that normalise them, a safe-output filter, and aggregation that reproduces pooled ground truth. The federated path does not run yet.
+
+| Component | State |
+| --- | --- |
+| Mock TREs — `tres/rest`, `tres/datashield`, `tres/sql` | implemented, covered by tests |
+| Adapters, registry, safe-output filter | implemented, covered by tests |
+| Allele frequency and federated OLS | verified against `data/ground_truth.json` |
+| Local runner without FLARE — `scripts/run_local.py` | implemented |
+| FLARE orchestration | does not build |
+| Server disclosure check, overseer queue | not started |
+| Interface for non-technical users | not started |
+
+`flare/server/Dockerfile` copies a `server/` directory and calls `scripts/start_server.sh`, and neither exists, so the orchestrator cannot start. Everything in the next section runs without it.
+
+## Running it
+
+Needs Python 3.11 or 3.12, run from the repository root. `pyproject.toml` declares a `server` package that is not in the tree, so an editable install will fail until that entry is fixed.
+
+Tests:
+
+```
+python -m pytest -q
+```
+
+Without Docker — start each TRE as a local uvicorn process on ports 8001 upwards, then send one analysis spec to all of them:
+
+```
+python scripts/dev_tres.py &
+python scripts/run_local.py spec/examples/allele_freq.json
+```
+
+With Docker — builds the TRE containers, checks each one's health endpoint from its own client container, and asserts that no TRE can reach the public internet:
+
+```
+scripts/up.sh
+```
+
+`spec/examples/` holds four specs: allele frequency, a filtered variant, one the safe-output filter is meant to reject, and federated linear regression. `sites.yaml` is the only place sites are listed — `scripts/gen_sites.py` regenerates `docker-compose.yml` and `flare/project.yml` from it.
+
 ## Team
 
 - Ioannis Christofilogiannis
@@ -31,6 +72,8 @@ Diagram source: [flowchart.drawio](https://drive.google.com/file/d/1j9t8W-cFVBYg
 6. **Disclosure check** — passing results plus an audit log are published; failures are rejected and the spec is refined.
 
 ## Goals
+
+These are the project's targets, not a description of what runs today — see [Status](#status) for that.
 
 ### 0. Simulate TREs
 - with various levels of security
@@ -98,3 +141,7 @@ ML jobs:
 
 ### X. Nice interface
 - User interface that allows API Usage for non-technical users
+
+## License
+
+Released under the [MIT License](LICENSE).
