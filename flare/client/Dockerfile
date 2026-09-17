@@ -10,6 +10,6 @@ COPY adapters/ /app/adapters/
 COPY harmonisation/ /app/harmonisation/
 COPY spec/ /app/spec/
 COPY scripts/ /app/scripts/
-COPY sites.yaml /app/sites.yaml
+COPY sites.yaml projects.yaml /app/
 ENV PYTHONPATH=/app AUDIT_DIR=/audit
 CMD ["bash", "-c", "if [ -f /client_kit/startup/start.sh ]; then bash scripts/start_client.sh; else echo 'no client kit mounted; idling'; sleep infinity; fi"]

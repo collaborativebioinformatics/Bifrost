@@ -30,12 +30,23 @@ from tres.common import DATA_PATH, TRE_ID, apply_filters, dtypes, gram, load_dat
 
 NFILTER_TAB = int(os.environ.get("DS_NFILTER_TAB", "3"))  # DataSHIELD default min cell count
 
-app = FastAPI(title=f"TRE {TRE_ID} (DataSHIELD)")
-
-
 class Call(BaseModel):
     fn: str
     args: dict[str, Any] = Field(default_factory=dict)
+
+
+def create_app(tre_id: str = TRE_ID, data_path: str = DATA_PATH) -> FastAPI:
+    app = FastAPI(title=f"TRE {tre_id} (DataSHIELD)")
+
+    @app.get("/health")
+    def health():
+        return {"status": "ok", "tre_id": tre_id, "api": "datashield", "n": int(len(load_data(data_path))), "nfilter.tab": NFILTER_TAB}
+
+    @app.post("/ds")
+    def ds(call: Call):
+        return _ds(call, data_path)
+
+    return app
 
 
 def _col(expr: str) -> str:
@@ -45,54 +56,48 @@ def _col(expr: str) -> str:
     return m.group(1)
 
 
-def _series(args: dict):
-    df = apply_filters(load_data(DATA_PATH), args.get("filter"))
+def _series(args: dict, data_path: str):
+    df = apply_filters(load_data(data_path), args.get("filter"))
     col = _col(args.get("x", ""))
     if col not in df.columns:
         raise HTTPException(400, f"unknown column {col!r}")
     return df[col]
 
 
-@app.get("/health")
-def health():
-    return {"status": "ok", "tre_id": TRE_ID, "api": "datashield", "n": int(len(load_data(DATA_PATH))), "nfilter.tab": NFILTER_TAB}
-
-
-@app.post("/ds")
-def ds(call: Call):
+def _ds(call: Call, data_path: str):
     fn, a = call.fn, call.args
     try:
         if fn == "ds.dim":
-            df = apply_filters(load_data(DATA_PATH), a.get("filter"))
+            df = apply_filters(load_data(data_path), a.get("filter"))
             return {"value": [int(len(df)), int(df.shape[1])]}
         if fn == "ds.colnames":
-            return {"value": list(load_data(DATA_PATH).columns)}
+            return {"value": list(load_data(data_path).columns)}
         if fn == "ds.class":
-            t = dtypes(load_data(DATA_PATH))[_col(a["x"])]
+            t = dtypes(load_data(data_path))[_col(a["x"])]
             return {"value": "integer" if t.startswith("int") else "numeric"}
         if fn == "ds.length":
-            return {"value": int(_series(a).count())}
+            return {"value": int(_series(a, data_path).count())}
         if fn == "ds.mean":
-            s = _series(a)
+            s = _series(a, data_path)
             return {"EstimatedMean": float(s.mean()), "Nvalid": int(s.count()), "Nmissing": int(s.isna().sum()), "Ntotal": int(len(s))}
         if fn == "ds.var":
-            s = _series(a)
+            s = _series(a, data_path)
             return {"EstimatedVar": float(s.var()), "Nvalid": int(s.count()), "Nmissing": int(s.isna().sum()), "Ntotal": int(len(s))}
         if fn == "ds.sum":
-            s = _series(a).astype(float)
+            s = _series(a, data_path).astype(float)
             return {"Sum": float(s.sum()), "SumSq": float((s ** 2).sum()), "Nvalid": int(s.count())}
         if fn == "ds.range":
-            s = _series(a)
+            s = _series(a, data_path)
             return {"min": float(s.min()), "max": float(s.max()), "exact": True}
         if fn == "ds.crossProd":
-            df = apply_filters(load_data(DATA_PATH), a.get("filter"))
+            df = apply_filters(load_data(data_path), a.get("filter"))
             cols = [_col(x) for x in a.get("cols", [])]
             missing = [c for c in cols if c not in df.columns]
             if missing:
                 raise HTTPException(400, f"unknown columns {missing}")
             return gram(df, cols)
         if fn == "ds.table":
-            vc = _series(a).value_counts().sort_index()
+            vc = _series(a, data_path).value_counts().sort_index()
             counts = {str(k): int(v) for k, v in vc.items() if v >= NFILTER_TAB}
             suppressed = [str(k) for k, v in vc.items() if v < NFILTER_TAB]
             return {"counts": counts, "suppressed": suppressed, "nfilter.tab": NFILTER_TAB}
@@ -101,3 +106,6 @@ def ds(call: Call):
     except ValueError as e:
         raise HTTPException(400, str(e))
     raise HTTPException(400, f"unknown function {fn!r}")
+
+
+app = create_app()

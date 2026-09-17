@@ -29,6 +29,9 @@ def compose(cfg: dict) -> dict:
             "container_name": srv["name"],
             "hostname": srv["host"],
             "networks": ["federation"],
+            # published so remote clients (Gefion, NextCloud) and the admin console can reach it
+            "ports": [f"{srv['fed_learn_port']}:{srv['fed_learn_port']}", f"{srv['admin_port']}:{srv['admin_port']}"],
+            "environment": {"SERVER_OUT": "/server_out"},
             "volumes": [
                 "./flare/workspace:/workspace",
                 "./server/out:/server_out",

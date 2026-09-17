@@ -14,3 +14,5 @@ audit/*/
 server/out/
 data/sites/*.csv
 notes/
+flare/jobs/
+flare/kits/

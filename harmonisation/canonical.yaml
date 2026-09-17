@@ -4,7 +4,7 @@
 #
 #   type : continuous | binary | genotype
 #   unit : free text
-#   local: { <tre_id>: <local column name> }
+#   local: { <tre_id>: <local column name> }   -- a site not listed uses the canonical name as-is
 
 variables:
   age:

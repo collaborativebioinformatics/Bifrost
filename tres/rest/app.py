@@ -13,8 +13,6 @@ from pydantic import BaseModel, Field
 
 from tres.common import DATA_PATH, TRE_ID, aggregate, apply_filters, dtypes, gram, load_data
 
-app = FastAPI(title=f"TRE {TRE_ID} (REST)")
-
 
 class Query(BaseModel):
     cols: list[str]
@@ -22,19 +20,26 @@ class Query(BaseModel):
     agg: Literal["count", "sum", "sum_sq", "min", "max", "mean", "value_counts", "gram"]
 
 
-@app.get("/health")
-def health():
-    return {"status": "ok", "tre_id": TRE_ID, "api": "rest", "n": int(len(load_data(DATA_PATH)))}
+def create_app(tre_id: str = TRE_ID, data_path: str = DATA_PATH) -> FastAPI:
+    app = FastAPI(title=f"TRE {tre_id} (REST)")
+
+    @app.get("/health")
+    def health():
+        return {"status": "ok", "tre_id": tre_id, "api": "rest", "n": int(len(load_data(data_path)))}
+
+    @app.get("/schema")
+    def schema():
+        return dtypes(load_data(data_path))
+
+    @app.post("/query")
+    def query(q: Query):
+        return _query(q, tre_id, data_path)
+
+    return app
 
 
-@app.get("/schema")
-def schema():
-    return dtypes(load_data(DATA_PATH))
-
-
-@app.post("/query")
-def query(q: Query):
-    df = load_data(DATA_PATH)
+def _query(q: Query, tre_id: str, data_path: str):
+    df = load_data(data_path)
     unknown = [c for c in q.cols if c not in df.columns]
     if unknown:
         raise HTTPException(400, f"unknown columns {unknown}")
@@ -43,5 +48,8 @@ def query(q: Query):
     except (KeyError, ValueError) as e:
         raise HTTPException(400, str(e))
     if q.agg == "gram":
-        return {"tre_id": TRE_ID, "n": int(len(sub)), "agg": "gram", "result": gram(sub, q.cols)}
-    return {"tre_id": TRE_ID, "n": int(len(sub)), "agg": q.agg, "result": {c: aggregate(sub[c], q.agg) for c in q.cols}}
+        return {"tre_id": tre_id, "n": int(len(sub)), "agg": "gram", "result": gram(sub, q.cols)}
+    return {"tre_id": tre_id, "n": int(len(sub)), "agg": q.agg, "result": {c: aggregate(sub[c], q.agg) for c in q.cols}}
+
+
+app = create_app()

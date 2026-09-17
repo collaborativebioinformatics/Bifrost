@@ -136,8 +136,14 @@ def test_datashield_native_suppression_is_visible(adapters, sites):
     if not ds:
         pytest.skip("no datashield site")
     a = adapters[ds[0]]
-    # filter down until DataSHIELD's nfilter.tab (3) bites on the hom-minor cell
-    spec = AnalysisSpec(analysis_type="allele_freq", variables=["snp_rs001"], filters={"age": {">=": 85}},
+    # tighten an age filter until DataSHIELD's own nfilter.tab (3) bites on some genotype cell
+    for age in range(70, 95):
+        vc = a.value_counts(a.local("snp_rs001"), {a.local("age"): {">=": age}})
+        if any(v is None for v in vc.values()):
+            break
+    else:
+        pytest.skip("no cell small enough for nfilter.tab in this data split")
+    spec = AnalysisSpec(analysis_type="allele_freq", variables=["snp_rs001"], filters={"age": {">=": age}},
                         min_cell_size=1, project_id=PROJECT)
     r = a.run(spec)
     assert any(x.endswith(":tre_native") for x in r.rejected), r.rejected

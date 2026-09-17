@@ -31,17 +31,11 @@ def synthetic_data(sites):
 
 
 def make_client(site: dict):
-    """Fresh app instance bound to this site's data (env is read at import time)."""
+    """Fresh app instance bound to this site's data; several sites may share an adapter."""
     from fastapi.testclient import TestClient
 
-    os.environ["TRE_ID"] = site["tre_id"]
-    os.environ["DATA_PATH"] = str(ROOT / "data" / "sites" / f"{site['tre_id']}.csv")
-    import tres.common
-
-    importlib.reload(tres.common)
     mod = importlib.import_module(f"tres.{site['adapter']}.app")
-    mod = importlib.reload(mod)
-    return TestClient(mod.app)
+    return TestClient(mod.create_app(site["tre_id"], str(ROOT / "data" / "sites" / f"{site['tre_id']}.csv")))
 
 
 @pytest.fixture(scope="session")
