@@ -49,7 +49,7 @@ jobs:
       - name: Build and export to Docker
         uses: docker/build-push-action@v6
         with:
-          context: "{{defaultContext}}:docker"
+          context: "{{defaultContext}}:."
           load: true
           tags: ${{ env.LATEST_TAG }}
           file:
@@ -75,7 +75,7 @@ jobs:
       - name: Build
         uses: docker/build-push-action@v6
         with:
-          context: "{{defaultContext}}:docker"
+          context: "{{defaultContext}}:."
           push: False
           tags: ${{ steps.meta.outputs.tags }}
           file:

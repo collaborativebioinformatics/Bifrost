@@ -46,7 +46,7 @@ jobs:
       - name: Build and export to Docker
         uses: docker/build-push-action@v6
         with:
-          context: "{{defaultContext}}:docker"
+          context: "{{defaultContext}}:."
           load: true
           tags: ${{ env.LATEST_TAG }}
           file:
@@ -71,58 +71,10 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: "{{defaultContext}}:docker"
+          context: "{{defaultContext}}:."
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           file:
             ./Dockerfile
           platforms: linux/amd64
-
-  build-apptainer-container:
-    needs: docker
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    name: Build Apptainer Container
-    steps:
-      - name: Check out code for the container builds
-        uses: actions/checkout@v4
-      - name: Setup Apptainer
-        uses: eWaterCycle/setup-apptainer@v2
-        with:
-          apptainer-version: 1.3.4
-      - name: Setup ORAS
-        uses: oras-project/setup-oras@v1
-        with:
-          version: 1.0.0
-      - name: Docker meta 
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: |
-            ghcr.io/${{ github.repository_owner }}/bifrost            
-          tags: |
-            type=schedule
-            type=ref,event=branch
-            type=ref,event=pr
-            type=pep440,pattern={{version}}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha
-            type=raw,value=latest,enable={{is_default_branch}} 
-      - name: Build and push Apptainer container
-        run: |
-          tags="${{ steps.meta.outputs.tags }}"
-          csv_tags=$(printf "%s\n" "$tags" | awk -F: 'NR==1{printf "%s,", $0; next} {printf "%s,", $NF}' | sed 's/,$//')
-          IFS= read -r first_tag <<EOF
-          $tags
-          EOF
-          push_tags="$(printf $csv_tags | sed -e "s/bifrost/bifrost_sif/g")"
-          echo ${{ secrets.GITHUB_TOKEN }} | oras login --username ${{ github.repository_owner }} --password-stdin ghcr.io
-          apptainer build bifrost.sif docker://"$first_tag"
-          oras push "$push_tags" bifrost.sif
-          rm bifrost.sif
-        shell: sh
