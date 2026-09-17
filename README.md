@@ -7,6 +7,22 @@ Two use cases, one pipeline:
 1. **Allele frequency** — federated *analysis*: each TRE returns genotype counts, the server sums.
 2. **Linear regression** — federated *learning*: each TRE returns model parameters (or the OLS sufficient statistics), the server averages / solves.
 
+## Team
+
+- Ioannis Christofilogiannis
+- Gaurang Sharma
+- Marta Menta Czinkoczky
+- Udogwu Emiri
+- Pedro Gabriel Campana
+- Vitalii Babenko
+- Melissa Wong
+- Espen Hagen
+
+Diagram source: [flowchart.drawio](https://drive.google.com/file/d/1j9t8W-cFVBYgHGrFrLGP5keU2vaFtE-l/view?usp=sharing)
+Everything verified so far runs either in-process or through the FLARE simulator. Nobody has yet run the stack against real Docker containers or a non-simulator FLARE server.
+
+![Cross-TRE federated analysis flowchart](flowchart_drawio.svg)
+
 ## Status
 
 Milestones M0–M5 are implemented: three mock TREs behind different APIs, adapters that normalise them, FLARE jobs, server-side aggregation with disclosure control, and scale evidence up to 100 simulated sites.
