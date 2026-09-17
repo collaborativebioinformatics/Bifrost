@@ -46,7 +46,7 @@ scripts/local_federation.sh down
 The fast suite needs no network. The FLARE simulator suite is marked `slow` and needs `nvflare` installed:
 
 ```sh
-python -m pytest -q -m "not slow"    # 31 tests
+python -m pytest -q -m "not slow"    # 61 tests
 python -m pytest -q -m slow          # 3 tests, ~50 s
 ```
 
@@ -190,7 +190,8 @@ Milestones M0–M6 are implemented: three mock TREs behind different APIs, adapt
 | Scale evidence — 3, 10, 50 and 100 simulated sites | `docs/scaling.png` |
 | Live (non-simulator) FLARE federation — provisioned server + clients, separate processes, mTLS | verified on one machine via `scripts/local_federation.sh` (see [Results](#results)) |
 | Docker: 7 images, isolated TRE networks, containerised FLARE server + clients | verified (`scripts/up.sh --flare`, jobs from inside `flare-server`, stopped container ⇒ `2/3 sites`) |
-| Interface for non-technical users | frontend under review in [#16](https://github.com/collaborativebioinformatics/Bifrost/pull/16); common API tracked in [#15](https://github.com/collaborativebioinformatics/Bifrost/issues/15). Neither is in this checkout. |
+| HTTP API — [`server/api.py`](server/api.py), [`server/analysis_service.py`](server/analysis_service.py) | implemented, covered by tests ([#24](https://github.com/collaborativebioinformatics/Bifrost/pull/24)). Runs the server disclosure check and overseer queue, and returns only releasable output. Serves `/health`, `/allele-frequency`, `/linear-regression` |
+| Researcher UI — [`frontend/`](frontend) | Next.js app merged ([#16](https://github.com/collaborativebioinformatics/Bifrost/pull/16)), one component test. **Not yet connected to the API**: it calls `/metadata`, `/run`, `/run/{id}`, `/overseer` and `/audit` on port 8500, none of which the API serves. Reconciling the two contracts is [#15](https://github.com/collaborativebioinformatics/Bifrost/issues/15), still open |
 
 ## Team
 
