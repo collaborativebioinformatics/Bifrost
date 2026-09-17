@@ -8,9 +8,10 @@ Bifrost — run one analysis across several Trusted Research Environments (TREs)
 
 Python 3.11–3.12, NVIDIA FLARE, FastAPI, DuckDB, Docker Compose. Dependency version constraints are declared in [pyproject.toml](pyproject.toml); ask before adding one.
 
-## Status (2026-09-17, after M5)
 
+A real (non-simulator) FLARE federation runs two verified ways: `scripts/local_federation.sh` with separate processes over mTLS, and Docker via `scripts/provision.sh && scripts/up.sh --flare`; both support the example specs, overseer flow, and partial-site coverage. The Next.js UI is implemented in `frontend/`; the Python API service exposing its documented contract remains separate. Not yet run: clients on remote hosts (Gefion / NextCloud).
 Implemented:
+
 
 | Area | Where |
 | --- | --- |
@@ -23,10 +24,11 @@ Implemented:
 | Harmonisation | `harmonisation/canonical.yaml` (unlisted site ⇒ local name = canonical name) |
 | FLARE jobs | `flare/app/` — `controller.py`/`executor.py` (allele_freq, fed_stats, exact fed_linreg), `linreg_controller.py`/`linreg_executor.py`/`linreg.py` (FedAvg fed_linreg). `scripts/build_job.py` assembles a job folder; `flare/jobs/` is generated and gitignored |
 | Server side | `server/aggregate.py` (associative merge), `server/disclosure_check.py`, `server/overseer_queue.py` (CLI); outputs under `server/out/` (gitignored, `SERVER_OUT` env) |
+| Researcher UI | `frontend/` — Next.js researcher, overseer, and audit workspace;  the API surface documented in `frontend/README.md` |
 | Ops scripts | `scripts/local_federation.sh` (real FLARE, no Docker), `scripts/provision.sh`, `scripts/onboard_tre.sh`, `scripts/start_server.sh`, `scripts/start_client.sh`, `scripts/run_job.py` (`--mode simulator|prod`, `--fedavg`), `scripts/run_local.py`, `scripts/verify.py`, `scripts/scale_sim.py` → `docs/scaling.png` |
 | Tests | `tests/` — 31 fast + 3 FLARE-simulator (`-m slow`) |
 
-A real (non-simulator) FLARE federation runs two ways and both are verified: `scripts/local_federation.sh` (separate processes on one machine) and Docker (`scripts/provision.sh && scripts/up.sh --flare`, then `docker compose exec flare-server python scripts/run_job.py --mode prod ...`): images build, TREs are internet-isolated, clients register over mTLS, all example specs pass, a stopped `flare-brev` container yields `2/3 sites`. Not implemented: UI. Not yet run: clients on remote hosts (Gefion / NextCloud).
+A real (non-simulator) FLARE federation runs two verified ways: `scripts/local_federation.sh` with separate processes over mTLS, and Docker via `scripts/provision.sh && scripts/up.sh --flare`; both support the example specs, overseer flow, and partial-site coverage. The Next.js UI is implemented in `frontend/`; the Python API service exposing its documented contract remains separate. Not yet run: clients on remote hosts (Gefion / NextCloud).
 
 `docs/architecture/flowchart.drawio` is the editable source for the implemented-flow overview. When changing that overview, regenerate both `docs/architecture/flowchart_drawio.svg` and `docs/architecture/flowchart.png` from it.
 

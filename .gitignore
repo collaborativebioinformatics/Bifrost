@@ -17,6 +17,7 @@ notes/
 flare/jobs/
 flare/kits/
 .local_fed/
+.next
 *.csv
 *.bed
 *.bim
