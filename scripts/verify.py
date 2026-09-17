@@ -25,6 +25,16 @@ def main() -> None:
     ap.add_argument("--tol", type=float, default=1e-9)
     a = ap.parse_args()
     res, gt = json.loads(a.result.read_text()), json.loads(a.truth.read_text())
+    spec_path = a.result.parent / "spec.json"
+    spec = json.loads(spec_path.read_text()) if spec_path.exists() else {}
+    if spec.get("filters"):
+        print(f"filtered spec {spec['filters']}: ground truth is for the unfiltered cohort, so no exactness check; "
+              f"federated values are shown for information only")
+        for var, st in res["stats"].items():
+            if st.get("allele_freq") is not None:
+                print(f"  {var} allele_freq {st['allele_freq']:.6f}  (n_alleles={st['allele_counts']['n_alleles']})")
+        print(f"coverage: {res['coverage']}  n={res['n']}  missing={res['sites_missing']}  sites={res['n_per_site']}")
+        sys.exit(0)
 
     print(f"coverage: {res['coverage']}  n={res['n']}  missing={res['sites_missing']}  sites={res['n_per_site']}")
     if res.get("method"):

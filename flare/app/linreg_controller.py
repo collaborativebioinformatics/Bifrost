@@ -16,6 +16,7 @@ from nvflare.apis.shareable import Shareable
 from nvflare.apis.signal import Signal
 
 from flare.app import linreg
+from scripts.sites import load_sites
 from server import disclosure_check, overseer_queue
 from spec.analysis_spec import AnalysisSpec
 
@@ -49,7 +50,9 @@ class FedLinregController(Controller):
         return dict(self._replies)
 
     def control_flow(self, abort_signal: Signal, fl_ctx: FLContext):
-        expected = sorted(c.name for c in fl_ctx.get_engine().get_clients())
+        # the federation is what sites.yaml says, not who happens to be connected right now:
+        # a site whose client is down still counts as missing ("2/3 sites"), never silently 2/2
+        expected = sorted(s["tre_id"] for s in load_sites()["sites"])
         init = Shareable()
         init["spec"] = self.spec.model_dump()
         replies = self._round("linreg_init", init, fl_ctx, abort_signal)

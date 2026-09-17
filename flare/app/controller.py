@@ -18,6 +18,7 @@ from nvflare.apis.shareable import Shareable
 from nvflare.apis.signal import Signal
 
 from adapters.base import AggregateResult
+from scripts.sites import load_sites
 from server import disclosure_check, overseer_queue
 from server.aggregate import combine
 from spec.analysis_spec import AnalysisSpec
@@ -58,7 +59,9 @@ class FedAnalysisController(Controller):
         if abort_signal.triggered:
             return
 
-        expected = sorted(c.name for c in fl_ctx.get_engine().get_clients())
+        # the federation is what sites.yaml says, not who happens to be connected right now:
+        # a site whose client is down still counts as missing ("2/3 sites"), never silently 2/2
+        expected = sorted(s["tre_id"] for s in load_sites()["sites"])
         merged = combine(self.results.values(), expected)
         merged["sites_failed"] = self.failed
         merged["timing"] = {"round_s": round(time.time() - t0, 3), "merge_s": None}

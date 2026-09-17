@@ -78,7 +78,7 @@ def main() -> None:
     print(f"round time: {time.time() - t0:.1f}s")
 
     # newest result dir written by the controller
-    runs = sorted((p for p in out_dir().iterdir() if p.is_dir() and (p / "result.json").exists()), key=lambda p: p.stat().st_mtime)
+    runs = sorted((p for p in out_dir().iterdir() if p.is_dir() and (p / "result.json").exists()), key=lambda p: (p / "result.json").stat().st_mtime)
     if not runs:
         sys.exit("no result written (in prod mode the result lives on the server: see server/out/ or /server_out)")
     res = runs[-1] / "result.json"

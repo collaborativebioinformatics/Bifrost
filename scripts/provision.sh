@@ -8,5 +8,5 @@ PY=${PY:-python}; [ -x .venv/bin/python ] && PY=.venv/bin/python
 PROJECT=$($PY -c "import yaml; print(yaml.safe_load(open('flare/project.yml'))['name'])")
 $PY scripts/gen_sites.py >/dev/null
 rm -rf "flare/workspace/$PROJECT"/prod_*
-$PY -m nvflare.lighter.provision -p flare/project.yml -w flare/workspace >/dev/null
+$PY -m nvflare.lighter.provision -p flare/project.yml -w flare/workspace --force >/dev/null
 echo "flare/workspace/$PROJECT/prod_00"
