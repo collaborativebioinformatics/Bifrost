@@ -1,62 +1,61 @@
-# Provisional variable dictionary
+# Variable dictionary
 
-This dictionary is a handoff draft, not an implemented schema. The repository
-does not yet contain the planned generator, harmonisation map, site
-configuration, or local datasets. Fields marked **TBD** need agreement before
-they are used in an analysis specification or mapping.
+These variables are **implemented** — `harmonisation/canonical.yaml` defines them, `data/generate.py` generates a synthetic cohort from them, and the adapters resolve canonical names to local columns through them. Running `python data/generate.py` produces `data/sites/<tre_id>.csv` with each site's own column names.
 
-Sources distinguish the current repository from planning input:
+They are **not agreed with any real TRE**. The local column names below are invented for the mock TREs; none of them is a HUNT, Gefion, or Brev schema. `harmonisation/canonical.yaml:2` still labels its content a placeholder pending this dictionary, and the naming stays provisional until each site supplies its real schema.
 
-- [README](../README.md) describes requests in canonical variable names and a
-  harmonisation map to each site's local columns.
-- [API architecture use case](../API_architecture_use_case.txt) gives an
-  example regression request with `age` and `bmi` predicting `blood_pressure`.
-- [BUILD_PLAN.md](../BUILD_PLAN.md) is a shared working draft, initially
-  written by Ioannis Christofilogiannis. It proposes 20 genotype columns with
-  values `0`/`1`/`2`, plus age, sex, BMI, LDL, and a continuous regression
-  outcome. It is not evidence of an existing dataset or agreed schema.
+Site IDs follow `sites.yaml`: `hunt` (REST adapter), `gefion` (DataSHIELD-style), `brev` (SQL). The README also describes Brev as a candidate location for the aggregation server, so its role as a data site is a property of the mock setup, not a commitment.
 
-## Canonical variables
+## Phenotypes
 
-| Canonical name | Definition | Unit | Type / encoding | HUNT local name | Gefion local name | Brev local name | Status / source |
-|---|---|---|---|---|---|---|---|
-| `genotype.<variant_id>` | One of the proposed per-variant genotype columns used for allele-frequency analysis. There are 20 planned columns; their identifiers are TBD. | TBD | Planned values: integer `0`, `1`, or `2`. Allele orientation, ploidy, and missing-value encoding are TBD. | TBD | TBD | TBD | Proposed in BUILD_PLAN |
-| `age` | Participant age. | TBD | TBD | TBD | TBD | TBD | Proposed phenotype in BUILD_PLAN; used as a feature in the API example |
-| `sex` | Participant sex variable. Definition and permitted categories are TBD. | Not applicable | TBD | TBD | TBD | TBD | Proposed phenotype in BUILD_PLAN |
-| `bmi` | Body mass index. | TBD | TBD | TBD | TBD | TBD | Proposed phenotype in BUILD_PLAN; used as a feature in the API example |
-| `ldl` | LDL measurement. The analyte definition and reporting unit are TBD. | TBD | TBD | TBD | TBD | TBD | Proposed phenotype in BUILD_PLAN |
-| `blood_pressure` | Proposed regression target in the API example. It is not specified as systolic, diastolic, or another pressure measure. | TBD | Planned continuous outcome; exact representation is TBD. | TBD | TBD | TBD | API example; continuous outcome proposed in BUILD_PLAN |
+| Canonical | Description | Type | Unit | HUNT | Gefion | Brev |
+|---|---|---|---|---|---|---|
+| `age` | Age at baseline. Integer-rounded. | continuous | years | `alder` | `age_years` | `AGE` |
+| `sex` | Sex, encoded `0` = female, `1` = male. | binary | — | `kjonn` | `sex_male` | `SEX` |
+| `bmi` | Body mass index, 1 decimal. | continuous | kg/m² | `bmi_baseline` | `body_mass_index` | `BMI` |
+| `ldl` | LDL cholesterol, 2 decimals. | continuous | mmol/L | `ldl_kol` | `ldl_c` | `LDL_MMOL` |
+| `sbp` | Systolic blood pressure. Regression outcome, 1 decimal. | continuous | mmHg | `systolisk` | `sbp_mmhg` | `SBP` |
 
-`genotype.<variant_id>` is a proposed normalized naming pattern, not an
-existing canonical name. `bmi` and `ldl` are lowercase choices for this draft;
-the API example uses `bmi`, while `ldl` is not a sourced canonical name. Do
-not create 20 concrete variable identifiers until the variant list is supplied.
+`sbp` resolves the `blood_pressure` target left open by the API architecture example — the implementation chose systolic. Which measurement protocol it represents (seated, mean of *n* readings) is still undefined.
 
-## Site and alias status
+## Genotypes
 
-No implemented per-site schemas or canonical-to-local mappings exist in the
-repository. The API example displays `age`, `BMI`, and `BP`, but those example
-labels do not establish HUNT, Gefion, or Brev aliases. BUILD_PLAN uses `hunt`,
-`gefion`, and `brev` as planned site IDs, while the README describes Brev as a
-possible aggregation-server location. Therefore the Brev-as-data-site label,
-all site ownership, and every local alias remain provisional.
+Twenty variants, `snp_rs001` through `snp_rs020`, each a minor-allele dosage of `0`, `1`, or `2` (unit: alleles). Local names follow a per-site pattern:
 
-## Decisions needed
+| Site | Pattern | Example (`snp_rs001`) |
+|---|---|---|
+| `hunt` | `rs<nnn>_gt` | `rs001_gt` |
+| `gefion` | `SNP_<n>` | `SNP_1` |
+| `brev` | `g_rs<nnn>` | `g_rs001` |
 
-1. Provide the 20 variant identifiers and state which allele the `0`/`1`/`2`
-   values count. Confirm ploidy, missing-value encoding, and the denominator
-   for allele-frequency calculations.
-2. Confirm the regression target and its unit; if it is blood pressure,
-   specify the measurement (for example, systolic or diastolic) and unit.
-3. Define units and valid encodings for age, sex, BMI, and LDL.
-4. Confirm participating data sites, their owners, and each canonical-to-local
-   alias after the local schemas are available.
+The `rs001`–`rs020` identifiers are synthetic placeholders, not real dbSNP rsIDs. Allele frequency is computed as `sum(dosage) / (2 × n)`, so the dosage counts the minor allele and ploidy is assumed to be 2. The synthetic data contains no missing values, so a missing-value encoding has never been exercised.
+
+## Synthetic cohort
+
+`data/generate.py` draws 30,000 rows (seed 7 by default) and splits them non-IID across sites. Ground truth is computed on the pooled data before splitting and written to `data/ground_truth.json`, which is what federated results are checked against.
+
+Generating model:
+
+- `age ~ N(55, 12)` plus a per-site shift of −6 to +6 years, clipped to 18–95; `bmi ~ N(26.5, 4.5)` clipped to 15–55; `ldl ~ N(3.4, 0.9)` clipped to 0.5–9; `sex ~ Bernoulli(0.5)`.
+- Each SNP has a global minor-allele frequency drawn from U(0.05, 0.45), multiplied per site by a drift factor in U(0.7, 1.3) and clipped to [0.01, 0.5]. Dosages are `Binomial(2, p)`, so genotypes are in HWE within a site but not across the pooled cohort.
+- `sbp = 90 + 0.5·age + 4.0·sex + 0.8·bmi + 1.2·ldl + 2.5·snp_rs001 − 1.5·snp_rs007 + 1.0·snp_rs013 + N(0, 10)`.
+
+Only `snp_rs001`, `snp_rs007`, and `snp_rs013` affect the outcome; the other seventeen are null by construction. Site sizes follow the `weight` field in `sites.yaml` (hunt 5, gefion 3, brev 2), and later sites skew older — both deliberate, so that naive pooling and correct federation give visibly different answers.
+
+Each per-site CSV carries a leading `row_id` column, which `tres/common.py:27` drops at load so it can never be queried or filtered on.
+
+## Still to agree
+
+1. Real local column names for each canonical variable, per TRE, replacing the invented ones above.
+2. Real variant identifiers, and confirmation that dosage counts the minor allele at each site.
+3. Missing-value encoding, and what an adapter should do when a canonical variable is absent at a site.
+4. The `sbp` measurement definition, and whether it is the outcome the team wants for the demo.
+5. Confirmation of `sex` as a binary `0`/`1` field, including how sites that record additional categories should map.
+6. Whether Brev is a data site, the aggregation server, or both.
 
 ## Resources to review
 
-Espen suggested these project resources to check before adding new
-implementation. They are retained here as candidates for schema/example reuse;
-their contents have not been verified for this draft.
+Espen suggested these before adding new implementation. Retained as candidates for schema and example reuse; contents not verified for this dictionary.
 
 - NVIDIA FLARE examples: <https://github.com/NVIDIA/NVFlare>
 - FedGen: <https://github.com/collaborativebioinformatics/FedGen>

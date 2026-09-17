@@ -6,7 +6,7 @@ Instructions for AI coding agents working in this repository. Humans should star
 
 Bifrost — run one analysis across several Trusted Research Environments (TREs) without any record-level data leaving a TRE. Each TRE computes locally behind its own native API and returns disclosure-checked aggregates; a FLARE server combines them. Built by Team 1 for the NCFH 2026 hackathon.
 
-Python 3.11–3.12, NVIDIA FLARE, FastAPI, DuckDB, Docker Compose. Dependencies are pinned in [pyproject.toml](pyproject.toml); ask before adding one.
+Python 3.11–3.12, NVIDIA FLARE, FastAPI, DuckDB, Docker Compose. Dependency version constraints are declared in [pyproject.toml](pyproject.toml); ask before adding one.
 
 ## Status (2026-09-17)
 
@@ -29,10 +29,9 @@ Known discrepancies — do not treat these as existing:
 
 - `pyproject.toml` lists `server` in `[tool.setuptools] packages`, but there is no `server/` directory. An editable install will fail until one is added or the entry is removed.
 - `sites.yaml` documents `scripts/onboard_tre.sh`; that script does not exist.
-- `docs/variables.md` states the repository has no generator, harmonisation map, or site configuration. That was true when written and is now outdated.
 - `flowchart.drawio` does not match the rendered `flowchart_drawio.svg`.
 
-Planning documents: [BUILD_PLAN.md](BUILD_PLAN.md) (provisional, milestone-based) and [docs/variables.md](docs/variables.md) (draft dictionary, many fields still TBD).
+Planning documents: [BUILD_PLAN.md](BUILD_PLAN.md) (provisional, milestone-based) and [docs/variables.md](docs/variables.md) (documents the implemented variables; the local column names in it are invented for the mock TREs and not agreed with any real site).
 
 ## Plans and code disagree often here
 
@@ -45,7 +44,7 @@ Confirm a path, command, module, or function exists before referencing it — th
 Checks that exist and were confirmed working on 2026-09-17:
 
 - `python -m pytest -q` — 21 passed. Test paths come from `[tool.pytest.ini_options]`.
-- `scripts/up.sh` — builds and starts all TREs, then smoke-tests a count from each and asserts no TRE can reach the public internet. Requires Docker; not run during this check.
+- `scripts/up.sh` — builds and starts all TREs, then checks each one's `/health` endpoint from its own FLARE client container and asserts that no TRE container can reach the public internet. Requires Docker; not run during this check.
 
 No linter or formatter is configured, and there is no CI.
 
