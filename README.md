@@ -1,5 +1,6 @@
 # Bifrost
 
+<!-- FLAG: this naming paragraph is flavour rather than reference content. It explains the project name, so it is not redundant — recommend: keep if the README is also a public front page, cut if it is purely an operator entry point. Author's call. -->
 Named after the guarded bridge between realms in Norse myth: a single crossing that connects otherwise sealed worlds, where nothing passes without the watchman's approval. Here it links isolated Nordic TREs so analyses can cross between them while the data itself never does.
 
 Cross-TRE federated analysis: run an analysis across several Trusted Research Environments (TREs) without moving any record-level data. Each TRE computes locally behind its own native API and returns only disclosure-checked aggregates; the orchestrator (an NVIDIA FLARE server outside every TRE) combines them. Built by Team 1 at the NCFH 2026 hackathon.
@@ -13,6 +14,7 @@ Two use cases, one pipeline:
 
 ## Status
 
+<!-- FLAG: this sentence summarises the table directly below it. Not provably redundant — it names the M0–M6 milestone span, which the table does not — recommend: keep, or cut the milestone list and retain only "Milestones M0–M6 are implemented." Author's call. -->
 Milestones M0–M6 are implemented: three mock TREs behind different APIs, adapters that normalise them, FLARE jobs, server-side aggregation with disclosure control, and scale evidence up to 100 simulated sites.
 
 | Component | State |
@@ -26,7 +28,7 @@ Milestones M0–M6 are implemented: three mock TREs behind different APIs, adapt
 | Scale evidence — 3, 10, 50 and 100 simulated sites | `docs/scaling.png` |
 | Live (non-simulator) FLARE federation — provisioned server + clients, separate processes, mTLS | verified on one machine via `scripts/local_federation.sh` (see [Results](#results)) |
 | Docker: 7 images, isolated TRE networks, containerised FLARE server + clients | verified (`scripts/up.sh --flare`, jobs from inside `flare-server`, stopped container ⇒ `2/3 sites`) |
-| Interface for non-technical users | not started |
+| Interface for non-technical users | frontend under review in [#16](https://github.com/collaborativebioinformatics/Bifrost/pull/16); common API tracked in [#15](https://github.com/collaborativebioinformatics/Bifrost/issues/15). Neither is in this checkout. |
 
 Everything verified so far runs on one machine: in-process, through the FLARE simulator, or as a real provisioned FLARE federation of separate processes over mTLS (`scripts/local_federation.sh`). Nobody has yet run clients on remote hosts (Gefion / NextCloud).
 
@@ -59,9 +61,11 @@ python -m pytest -q -m slow          # 3 tests, ~50 s
 python scripts/dev_tres.py
 ```
 
-Wait for `TREs running; Ctrl-C to stop`. Everything below runs from a second terminal.
+Wait for `TREs running; Ctrl-C to stop`. The two paths immediately below run from a second terminal while it keeps running.
 
-**One analysis across all three, without FLARE:**
+The launch paths are alternatives, not steps: `dev_tres.py` takes ports 8001–8003, and `sites.yaml` gives the FLARE server `fed_learn_port: 8002` and `admin_port: 8003`, so **stop `dev_tres.py` before starting the real federation or Docker** — both start their own TREs.
+
+**One analysis across all three, without FLARE.** Development only: it merges site results but does not run the server disclosure check or the overseer queue, so its output has not passed release control. One failing TRE aborts the whole run rather than yielding partial coverage:
 
 ```
 python scripts/run_local.py spec/examples/allele_freq.json
@@ -98,63 +102,11 @@ scripts/up.sh --down
 
 ## Results
 
-Synthetic cohort: 30 000 rows, 20 SNPs, age/sex/BMI/LDL, outcome SBP; split non-IID over three sites with **different column names and different APIs** (hunt 14 892 · gefion 8 953 · brev 6 155; per-site allele-frequency drift and age skew). All numbers below are from the real federation (`local_federation.sh`), 2026-09-17.
+Measured on a real federation (`local_federation.sh`) over a 30 000-row synthetic cohort split non-IID across three sites with different column names and different APIs, 2026-09-17. Allele frequencies match pooled ground truth exactly; exact and FedAvg linear regression agree with pooled OLS to 1.7e-11 and 2.2e-11; a killed client yields `2/3 sites` and still-exact output; aggregation stays exact at 3, 10, 50 and 100 simulated sites.
 
-### Allele frequency — `spec/examples/allele_freq.json`
+**Full figures, per-scenario detail and the scaling plot: [docs/results.md](docs/results.md).**
 
-| SNP | federated (3/3 sites, n = 30 000) | ground truth | abs error |
-|---|---|---|---|
-| snp_rs001 | 0.074617 | 0.074617 | 0 |
-| snp_rs002 | 0.237933 | 0.237933 | 0 |
-| snp_rs003 | 0.230083 | 0.230083 | 0 |
-| snp_rs004 | 0.154550 | 0.154550 | 0 |
-| snp_rs005 | 0.131500 | 0.131500 | 0 |
-
-Round time 11.9 s (job submit → merged result), of which the federated round itself is ~1.4 s; the rest is FLARE job deployment.
-
-### Linear regression — `spec/examples/fed_linreg.json`, `sbp ~ age + sex + bmi + ldl + rs001 + rs007 + rs013`
-
-| coefficient | exact (1 round, Gram matrices leave) | FedAvg (10 rounds, β per round after an init exchange) | pooled OLS |
-|---|---|---|---|
-| intercept | 89.2729 | 89.2729 | 89.2729 |
-| age | 0.5055 | 0.5055 | 0.5055 |
-| sex | 4.2034 | 4.2034 | 4.2034 |
-| bmi | 0.8062 | 0.8062 | 0.8062 |
-| ldl | 1.2189 | 1.2189 | 1.2189 |
-| snp_rs001 | 2.3934 | 2.3934 | 2.3934 |
-| snp_rs007 | −1.2817 | −1.2817 | −1.2817 |
-| snp_rs013 | 0.9003 | 0.9003 | 0.9003 |
-| max abs error | 1.7e-11 | 2.2e-11 | — |
-
-FedAvg convergence (max |β − truth|): round 1 3.5e-1 → round 3 1.9e-3 → round 5 7.3e-6 → round 10 2.2e-11. With `--local-steps 5` the run converges to the *wrong* point (err ≈ 2.4e-2) — the classic non-IID FedAvg bias, kept as a test ([`tests/test_m4_linreg.py`](tests/test_m4_linreg.py)).
-
-Both modes use the same adapters: each site's adapter returns the Gram matrix `[1, y, X]ᵀ[1, y, X]` (an allow-listed aggregate). In FedAvg mode the FLARE client keeps that matrix inside the TRE: at initialisation a site sends `{n, features, sum, sum_sq}` so the server can fix one global standardisation, and each training round it sends the p+1 model coefficients β plus the sample count n. Local training is full-batch gradient steps on the site's own sufficient statistics (same update as `SGDRegressor.partial_fit` on that site's rows, without the rows).
-
-### Suppression, overseer, straggler
-
-| Scenario | What happened |
-|---|---|
-| `allele_freq_rejected.json` (`min_cell_size: 100`) | Every site withheld the hom-minor cell (`count=51/89/27<100`) **and** the derived allele counts (`derived_from_suppressed_cell`); audit `decision: PARTIAL` at all three sites. Server flagged `site_suppression:*` → overseer queue → approved by `lead` with a note → `released.json` written, release log records `QUEUED` then `RELEASED`. |
-| `allele_freq_filtered.json` (`age ≥ 60`, `sex = 1`) | 3/3 sites, n = 4 690; DataSHIELD's own `nfilter.tab` and our k-rule both applied; nothing flagged. |
-| brev's FLARE client killed before submission | Result marked **`2/3 sites`, `missing: ['brev']`**, n = 23 845, still exact for the reporting sites (verify recomputes the truth over them). Job completed in 11.8 s — nobody waited for the dead site. |
-| Unknown `project_id` | Rejected by every adapter before any query; audited as `REJECTED`. |
-
-Audit trail from the run above: hunt 16 lines, gefion 16, brev 15 (`OK` / `PARTIAL`), one line per spec per site plus one per FedAvg round. Server: `server/out/release_log.jsonl` (7 entries) and `server/out/<spec_hash>/{spec,result,check,released}.json`.
-
-### Scaling — `scripts/scale_sim.py`
-
-![round time vs number of TREs](docs/scaling.png)
-
-| TREs | federated round | whole simulator run | exact vs pooled truth |
-|---|---|---|---|
-| 3 | 4.1 s | 10.6 s | yes |
-| 10 | 7.7 s | 16.6 s | yes |
-| 50 | 21.4 s | 30.7 s | yes |
-| 100 | 38.3 s | 47.7 s | yes |
-
-Adapters cycled rest/datashield/sql across four `region`s, 1 000 rows per site, 8 client threads in the FLARE simulator (the slope is thread scheduling; merging 100 results took < 1 ms). Everything the server combines is a sum, so a regional relay aggregator (FLARE hierarchical topology, grouped on `region`) needs no change to adapters or analyses.
-
-
+<!-- FLAG: placement. "Five Safes mapping" and "Adding a TRE" were not named in the entry-point keep-list, and both are detailed reference material that could move to docs/. Kept here because Five Safes is the governance argument a reader needs early, and Adding a TRE is operational setup — recommend: confirm, then move both to docs/ if the README should be shorter still. -->
 ## Five Safes mapping
 
 | Safe | Mechanism here |
@@ -227,76 +179,9 @@ Diagram source: [flowchart.drawio](https://drive.google.com/file/d/1j9t8W-cFVBYg
 | Server side | [`server/`](server) | Associative merge, N-aware disclosure check, overseer queue + release log. |
 | Ops | [`scripts/`](scripts) | generate, provision, onboard a TRE, start server/client, run a job, verify, scale simulation. |
 
-## Goals
+## Roadmap
 
-These are the project's targets, not a description of what runs today — see [Status](#status) for that.
-
-### 0. Simulate TREs
-- with various levels of security
-
-### 1. Federated Infrastructure
-1.1. Create client + server kits (certificates)
-
-1.2. Distribute them
-
-1.3. Connect them via IP addresses
-
-### 2. A simple ML/AI training task
-Use case: Calculate Allele Frequency & Linear Regression
-
-
-- Use case 1: Calculate Allele Frequency
-  federated analysis — computation happens inside each TRE; aggregate statistic leaves.
-- Use case 2: Linear regression 
-  federated learning — training happens inside each TRE; model information leaves.
-- Use case X: iterative model training (DL or similar)
-
-[View API Architecture Use Case](docs/architecture/API_architecture_use_case.txt)
-
-                 federation_client.py
-                         │
-               ┌─────────┴─────────┐
-               │                   │
-        federated analysis   federated learning
-               │                   │
-       GET allele freq         POST train
-               │                   │
-       ┌───────┼───────┐   ┌───────┼───────┐
-       ↓       ↓       ↓   ↓       ↓       ↓
-      TRE1    TRE2    TRE3 TRE1    TRE2    TRE3
-       │       │       │   │       │       │
-      DB      DB      DB   DB      DB      DB
-       🔒      🔒      🔒   🔒      🔒      🔒
-       │       │       │   │       │       │
-     counts  counts  counts β₁    β₂      β₃
-       └───────┼───────┘   └───────┼───────┘
-               ↓                   ↓
-          aggregate          aggregate model
-          
-ML jobs:
-- Select dataset and distribute it
-- Create a simulated NVFlare job
-- Distribute the job to clients
-- Run the job on the connected clients
-
-### 3. Weights aggregation
-- Collect model weights from each TRE after local training
-- Aggregate the local weights on the FLARE server using FedAvg
-- Generate a single global model from the aggregated weights
-- Redistribute the global model to participating TREs
-- Run a small number of federated training rounds and track the results
-- Log the aggregation process without exposing local data
-
-### 4. Interface that allows API usage for non-technical users
-
-### 5. Deployment on real-world TREs
-- HUNT Cloud clients (multiple users)
-- Gefion clients (multiple users)
-- Server for model aggregation (Brev or AWS)
-- Admin - FLARE Dashboard/deployment kits (Brev or AWS)
-
-### X. Nice interface
-- User interface that allows API Usage for non-technical users
+The original goals — targets and historical intent, not a description of what runs today; see [Status](#status) for that. Kept in full, with their caveats, in [docs/roadmap.md](docs/roadmap.md).
 
 ## License
 
