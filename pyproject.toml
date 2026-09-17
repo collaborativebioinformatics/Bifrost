@@ -13,7 +13,7 @@ dependencies = [
     "uvicorn>=0.29",
     "duckdb>=1.0",
     "nvflare>=2.5,<2.10",
-    "py.test>=8.0",
+    "pytest>=9.0",
 ]
 
 [project.optional-dependencies]
