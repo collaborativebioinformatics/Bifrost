@@ -112,7 +112,7 @@ Round time 11.9 s (job submit → merged result), of which the federated round i
 
 ### Linear regression — `spec/examples/fed_linreg.json`, `sbp ~ age + sex + bmi + ldl + rs001 + rs007 + rs013`
 
-| coefficient | exact (1 round, Gram matrices leave) | FedAvg (10 rounds, only β leaves) | pooled OLS |
+| coefficient | exact (1 round, Gram matrices leave) | FedAvg (10 rounds, β per round after an init exchange) | pooled OLS |
 |---|---|---|---|
 | intercept | 89.2729 | 89.2729 | 89.2729 |
 | age | 0.5055 | 0.5055 | 0.5055 |
@@ -126,7 +126,7 @@ Round time 11.9 s (job submit → merged result), of which the federated round i
 
 FedAvg convergence (max |β − truth|): round 1 3.5e-1 → round 3 1.9e-3 → round 5 7.3e-6 → round 10 2.2e-11. With `--local-steps 5` the run converges to the *wrong* point (err ≈ 2.4e-2) — the classic non-IID FedAvg bias, kept as a test ([`tests/test_m4_linreg.py`](tests/test_m4_linreg.py)).
 
-Both modes use the same adapters: each site's adapter returns the Gram matrix `[1, y, X]ᵀ[1, y, X]` (an allow-listed aggregate). In FedAvg mode the FLARE client keeps it inside the TRE and only sends p+1 parameters per round; local training is full-batch gradient steps on the site's own sufficient statistics (same update as `SGDRegressor.partial_fit` on that site's rows, without the rows).
+Both modes use the same adapters: each site's adapter returns the Gram matrix `[1, y, X]ᵀ[1, y, X]` (an allow-listed aggregate). In FedAvg mode the FLARE client keeps that matrix inside the TRE: at initialisation a site sends `{n, features, sum, sum_sq}` so the server can fix one global standardisation, and each training round it sends the p+1 model coefficients β plus the sample count n. Local training is full-batch gradient steps on the site's own sufficient statistics (same update as `SGDRegressor.partial_fit` on that site's rows, without the rows).
 
 ### Suppression, overseer, straggler
 
@@ -211,7 +211,7 @@ Diagram source: [flowchart.drawio](https://drive.google.com/file/d/1j9t8W-cFVBYg
 3. **Local execution** — each TRE runs a FLARE client with an adapter onto its native API (REST, DataSHIELD/R, SQL gateway). Compute happens where the data is; record-level data never leaves.
 4. **Safe output** — each site filters results before they leave: aggregates only, small-count suppression (k ≥ 5).
 5. **Aggregation** — the server combines site results into federated statistics; feature selection and logistic regression follow later.
-6. **Disclosure check** — passing results plus an audit log are published; failures are rejected and the spec is refined.
+6. **Disclosure check** — passing results plus an audit log are released; flagged results go to the overseer queue, where a human approves or rejects them, and every decision is recorded in the release log.
 
 | Component | Where | What it does |
 |---|---|---|
