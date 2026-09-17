@@ -1,4 +1,6 @@
-# Federated_APIs
+# Bifrost
+
+Named after the guarded bridge between realms in Norse myth: a single crossing that connects otherwise sealed worlds, where nothing passes without the watchman's approval. Here it links isolated Nordic TREs so analyses can cross between them while the data itself never does.
 
 Cross-TRE federated analysis: run an analysis across several Trusted Research Environments (TREs) without moving any record-level data. Each TRE computes locally behind its own native API and returns only disclosure-checked aggregates; the orchestrator combines them.
 
