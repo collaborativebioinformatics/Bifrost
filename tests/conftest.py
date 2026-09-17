@@ -47,3 +47,12 @@ def make_client(site: dict):
 @pytest.fixture(scope="session")
 def tre_clients(sites):
     return {s["tre_id"]: (s, make_client(s)) for s in sites}
+
+
+@pytest.fixture(scope="session")
+def adapters(tre_clients, tmp_path_factory):
+    """One adapter per site, speaking to its in-process TRE app. Audit logs go to a temp dir."""
+    from adapters import registry
+
+    os.environ["AUDIT_DIR"] = str(tmp_path_factory.mktemp("audit"))
+    return {tid: registry.load(tid, client=c) for tid, (s, c) in tre_clients.items()}

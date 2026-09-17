@@ -15,6 +15,7 @@ TRE has its *native* protection underneath our Safe Output layer.
   ds.sum(D$x)                   -> {"Sum", "SumSq", "Nvalid"}       (not in real DataSHIELD; needed for federated stats)
   ds.table(D$x)                 -> {"counts": {level: n}, "suppressed": [levels]}   cells < nfilter.tab hidden
   ds.range(D$x)                 -> {"min", "max"}  (DataSHIELD returns jittered range; we return exact + flag)
+  ds.crossProd(cols=[D$x,...])  -> {"n", "cols", "matrix"}  cross-product of [1, x...] (cf. ds.glm's score/information exchange)
 """
 from __future__ import annotations
 
@@ -25,7 +26,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from tres.common import DATA_PATH, TRE_ID, apply_filters, dtypes, load_data
+from tres.common import DATA_PATH, TRE_ID, apply_filters, dtypes, gram, load_data
 
 NFILTER_TAB = int(os.environ.get("DS_NFILTER_TAB", "3"))  # DataSHIELD default min cell count
 
@@ -83,6 +84,13 @@ def ds(call: Call):
         if fn == "ds.range":
             s = _series(a)
             return {"min": float(s.min()), "max": float(s.max()), "exact": True}
+        if fn == "ds.crossProd":
+            df = apply_filters(load_data(DATA_PATH), a.get("filter"))
+            cols = [_col(x) for x in a.get("cols", [])]
+            missing = [c for c in cols if c not in df.columns]
+            if missing:
+                raise HTTPException(400, f"unknown columns {missing}")
+            return gram(df, cols)
         if fn == "ds.table":
             vc = _series(a).value_counts().sort_index()
             counts = {str(k): int(v) for k, v in vc.items() if v >= NFILTER_TAB}

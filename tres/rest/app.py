@@ -11,7 +11,7 @@ from typing import Any, Literal
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from tres.common import DATA_PATH, TRE_ID, aggregate, apply_filters, dtypes, load_data
+from tres.common import DATA_PATH, TRE_ID, aggregate, apply_filters, dtypes, gram, load_data
 
 app = FastAPI(title=f"TRE {TRE_ID} (REST)")
 
@@ -19,7 +19,7 @@ app = FastAPI(title=f"TRE {TRE_ID} (REST)")
 class Query(BaseModel):
     cols: list[str]
     filters: dict[str, dict[str, Any]] = Field(default_factory=dict)
-    agg: Literal["count", "sum", "sum_sq", "min", "max", "mean", "value_counts"]
+    agg: Literal["count", "sum", "sum_sq", "min", "max", "mean", "value_counts", "gram"]
 
 
 @app.get("/health")
@@ -42,4 +42,6 @@ def query(q: Query):
         sub = apply_filters(df, q.filters)
     except (KeyError, ValueError) as e:
         raise HTTPException(400, str(e))
+    if q.agg == "gram":
+        return {"tre_id": TRE_ID, "n": int(len(sub)), "agg": "gram", "result": gram(sub, q.cols)}
     return {"tre_id": TRE_ID, "n": int(len(sub)), "agg": q.agg, "result": {c: aggregate(sub[c], q.agg) for c in q.cols}}

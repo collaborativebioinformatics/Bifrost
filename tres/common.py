@@ -52,19 +52,32 @@ def apply_filters(df: pd.DataFrame, filters: dict[str, dict[str, Any]] | None) -
     return df[mask]
 
 
+def _f(x) -> float | None:
+    x = float(x)
+    return None if x != x else x  # NaN (empty selection) is not JSON
+
+
 def aggregate(series: pd.Series, agg: str) -> Any:
     if agg == "count":
         return int(series.count())
     if agg == "sum":
-        return float(series.sum())
+        return _f(series.sum())
     if agg == "sum_sq":
-        return float((series.astype(float) ** 2).sum())
+        return _f((series.astype(float) ** 2).sum())
     if agg == "min":
-        return float(series.min())
+        return _f(series.min())
     if agg == "max":
-        return float(series.max())
+        return _f(series.max())
     if agg == "mean":
-        return float(series.mean())
+        return _f(series.mean())
     if agg == "value_counts":
         return {str(k): int(v) for k, v in series.value_counts().sort_index().items()}
     raise ValueError(f"unsupported agg {agg!r}")
+
+
+def gram(df: pd.DataFrame, cols: list[str]) -> dict:
+    """Cross-product matrix of [1, *cols]; the sufficient statistic for OLS / means / variances."""
+    import numpy as np
+
+    X = np.column_stack([np.ones(len(df))] + [df[c].to_numpy(float) for c in cols])
+    return {"n": int(len(df)), "cols": ["1", *cols], "matrix": (X.T @ X).tolist()}
