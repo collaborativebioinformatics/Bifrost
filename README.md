@@ -1,5 +1,8 @@
 # Bifrost
 
+![Bifrost Logo](docs/bifrost.svg)
+
+ 
 Analyse data across research environments without moving individual records.
 
 Calculate allele frequencies or fit linear regression across participating sites, with disclosure checks before results are released. Each Trusted Research Environment (TRE) computes behind its own API; Bifrost combines permitted aggregates with NVIDIA FLARE.
