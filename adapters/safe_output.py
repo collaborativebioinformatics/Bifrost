@@ -120,3 +120,9 @@ def filter(tre_id: str, region: str, spec: AnalysisSpec, n: int, raw: dict[str, 
     decision = "OK" if not rejected else "PARTIAL"
     _audit(tre_id, spec, n, out, rejected, decision)
     return AggregateResult(tre_id=tre_id, n=n, stats=out, rejected=rejected, region=region, spec_hash=spec.spec_hash())
+
+
+def audit_release(tre_id: str, spec: AnalysisSpec, n: int, released: dict[str, list[str]], note: str) -> None:
+    """Audit something derived inside the TRE from an already-filtered result
+    (e.g. per-round model parameters in federated learning)."""
+    _audit(tre_id, spec, n, {k: {x: None for x in v} for k, v in released.items()}, [], f"OK:{note}")

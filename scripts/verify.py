@@ -27,6 +27,8 @@ def main() -> None:
     res, gt = json.loads(a.result.read_text()), json.loads(a.truth.read_text())
 
     print(f"coverage: {res['coverage']}  n={res['n']}  missing={res['sites_missing']}  sites={res['n_per_site']}")
+    if res.get("method"):
+        print(f"method: {res['method']}")
     if res.get("rejected_per_site"):
         print("suppressions:")
         for s, rej in res["rejected_per_site"].items():
@@ -56,8 +58,12 @@ def main() -> None:
                 err = abs(v - t)
                 worst = max(worst, err)
                 rows.append((f"ols {k}", v, t, err, ""))
-        if var in st and not st:
-            rows.append((var, None, None, 0.0, "nothing released"))
+        if "history" in st and full:
+            print("fedavg convergence (max |coef - truth| per round):")
+            for h in st["history"]:
+                e = max(abs(v - gt["ols"]["coef"][k]) for k, v in h["coef"].items() if k in gt["ols"]["coef"])
+                if h["round"] in (1, 2, 3, 5, 10, 20, 50, 100) or h["round"] == st["history"][-1]["round"]:
+                    print(f"  round {h['round']:3d}  {h['sites']} sites  err {e:.2e}")
 
     print(f"{'statistic':28s} {'federated':>14s} {'ground truth':>14s} {'abs err':>10s}")
     for name, f, t, e, note in rows:

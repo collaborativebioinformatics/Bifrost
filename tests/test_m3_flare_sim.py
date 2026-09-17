@@ -73,3 +73,22 @@ def test_straggler_yields_partial_coverage(tres, sites, tmp_path):
     _simulate(job, tmp_path / "ws", out, clients)
     res = json.loads(next(d for d in out.iterdir() if d.is_dir() and d.name != "audit").joinpath("result.json").read_text())
     assert res["coverage"] == f"{len(sites)}/{len(clients)} sites" and res["sites_missing"] == ["ghost"]
+
+
+def test_fed_linreg_fedavg_end_to_end(tres, sites, tmp_path):
+    """Multi-round FedAvg: only β leaves each site per round; converges to the pooled OLS."""
+    from scripts.build_job import build
+
+    job = build(ROOT / "spec" / "examples" / "fed_linreg.json", tmp_path / "job", min_clients=2, wait_time=1,
+                fedavg={"rounds": 8, "local_steps": 1, "lr": 1.0})
+    out = tmp_path / "out"
+    _simulate(job, tmp_path / "ws", out, [s["tre_id"] for s in sites])
+    res = json.loads(next(d for d in out.iterdir() if d.is_dir() and d.name != "audit").joinpath("result.json").read_text())
+    gt = json.loads((ROOT / "data" / "ground_truth.json").read_text())
+    assert res["method"]["mode"] == "fedavg" and len(res["stats"]["_linreg"]["history"]) == 8
+    coef = res["stats"]["_linreg"]["ols"]["coef"]
+    assert max(abs(coef[k] - gt["ols"]["coef"][k]) for k in coef) < 1e-4
+    # per-round audit lines exist at every site
+    for s in sites:
+        lines = (out / "audit" / "audit.jsonl").read_text().splitlines()
+        assert sum(1 for l in lines if f'"tre_id": "{s["tre_id"]}"' in l and "fedavg_round=" in l) == 8
