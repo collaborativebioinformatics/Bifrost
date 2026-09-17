@@ -23,17 +23,16 @@ Implemented:
 | Harmonisation | `harmonisation/canonical.yaml` (unlisted site ⇒ local name = canonical name) |
 | FLARE jobs | `flare/app/` — `controller.py`/`executor.py` (allele_freq, fed_stats, exact fed_linreg), `linreg_controller.py`/`linreg_executor.py`/`linreg.py` (FedAvg fed_linreg). `scripts/build_job.py` assembles a job folder; `flare/jobs/` is generated and gitignored |
 | Server side | `server/aggregate.py` (associative merge), `server/disclosure_check.py`, `server/overseer_queue.py` (CLI); outputs under `server/out/` (gitignored, `SERVER_OUT` env) |
-| Ops scripts | `scripts/provision.sh`, `scripts/onboard_tre.sh`, `scripts/start_server.sh`, `scripts/start_client.sh`, `scripts/run_job.py` (`--mode simulator|prod`, `--fedavg`), `scripts/run_local.py`, `scripts/verify.py`, `scripts/scale_sim.py` → `docs/scaling.png` |
+| Ops scripts | `scripts/local_federation.sh` (real FLARE, no Docker), `scripts/provision.sh`, `scripts/onboard_tre.sh`, `scripts/start_server.sh`, `scripts/start_client.sh`, `scripts/run_job.py` (`--mode simulator|prod`, `--fedavg`), `scripts/run_local.py`, `scripts/verify.py`, `scripts/scale_sim.py` → `docs/scaling.png` |
 | Tests | `tests/` — 31 fast + 3 FLARE-simulator (`-m slow`) |
 
-Not implemented: UI; no run against real Docker containers or a live (non-simulator) FLARE server has been performed on the development machine (no Docker there).
+A real (non-simulator) FLARE federation — provisioned server + clients as separate processes over mTLS — runs on one machine with `scripts/local_federation.sh`; all example specs, the overseer flow and a dead-client run were verified on it. Not implemented: UI. Not yet run anywhere: the Docker path (`scripts/up.sh`, images) — no Docker on the development machine.
 
 Known discrepancies — do not treat these as existing:
 
 - `flowchart.drawio` does not match the rendered `flowchart_drawio.svg`.
-- `README.md` still describes the pre-implementation plan (no results table, no "adding a TRE" section).
 
-Planning documents: [BUILD_PLAN.md](BUILD_PLAN.md) (milestone-based; M0–M5 done) and [docs/variables.md](docs/variables.md) (documents the implemented variables; the local column names in it are invented for the mock TREs and not agreed with any real site).
+Planning documents: [BUILD_PLAN.md](BUILD_PLAN.md) (milestone-based; M0–M6 done) and [docs/variables.md](docs/variables.md) (documents the implemented variables; the local column names in it are invented for the mock TREs and not agreed with any real site).
 
 ## Plans and code disagree often here
 
@@ -48,6 +47,7 @@ Checks that exist and were confirmed working on 2026-09-17:
 - `python -m pytest -q -m "not slow"` — 31 passed, ~1 s, no network.
 - `python -m pytest -q -m slow` — 3 passed, ~50 s; starts the TREs as local processes and runs FLARE simulator jobs (allele_freq, straggler, FedAvg linreg).
 - `scripts/dev_tres.py` + `scripts/run_job.sh spec/examples/<spec>.json` — simulator end-to-end with `scripts/verify.py` against ground truth.
+- `scripts/local_federation.sh up && scripts/local_federation.sh job spec/examples/allele_freq.json` — real FLARE server + 3 clients on localhost; ~12 s per job.
 - `scripts/scale_sim.py` — N ∈ {3, 10, 50, 100} clients, exact at every N; ~2 min.
 - `scripts/onboard_tre.sh <id>` — adds a site, regenerates, provisions, packs a kit (~2 s).
 - `scripts/up.sh` — builds and starts all TREs, then checks each one's `/health` endpoint from its own FLARE client container and asserts that no TRE container can reach the public internet. Requires Docker; not run during this check.
