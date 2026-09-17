@@ -13,3 +13,4 @@ audit/*/
 *.egg-info/
 server/out/
 data/sites/*.csv
+notes/
