@@ -53,7 +53,7 @@ Checks that exist and were confirmed working on 2026-09-17:
 - `scripts/onboard_tre.sh <id>` — adds a site, regenerates, provisions, packs a kit (~2 s).
 - `scripts/up.sh` — builds and starts all TREs, then checks each one's `/health` endpoint from its own FLARE client container and asserts that no TRE container can reach the public internet. Requires Docker; not run during this check.
 
-No linter or formatter is configured, and there is no CI.
+CI: `.github/workflows/ci.yml` runs `python -m pytest -q -m "not slow"` on every push and pull request, against Python 3.11 and 3.12. No linter or formatter is configured.
 
 For documentation changes, check source accuracy, links, and `git diff --check`.
 
