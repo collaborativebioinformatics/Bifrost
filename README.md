@@ -4,6 +4,8 @@ Named after the guarded bridge between realms in Norse myth: a single crossing t
 
 Cross-TRE federated analysis: run an analysis across several Trusted Research Environments (TREs) without moving any record-level data. Each TRE computes locally behind its own native API and returns only disclosure-checked aggregates; the orchestrator (an NVIDIA FLARE server outside every TRE) combines them. Built by Team 1 at the NCFH 2026 hackathon.
 
+See the [documentation index](docs/README.md) for reference material, planning history, architecture proposals, and scaling evidence.
+
 Two use cases, one pipeline:
 
 1. **Allele frequency** — federated *analysis*: each TRE returns genotype counts, the server sums.
@@ -202,7 +204,7 @@ For the final demo the same steps put one client on Gefion and one on NextCloud 
 
 Diagram source: [flowchart.drawio](https://drive.google.com/file/d/1j9t8W-cFVBYgHGrFrLGP5keU2vaFtE-l/view?usp=sharing)
 
-![Cross-TRE federated analysis flowchart](flowchart_drawio.svg)
+![Cross-TRE federated analysis flowchart](docs/architecture/flowchart_drawio.svg)
 
 ### Flow
 
@@ -249,7 +251,7 @@ Use case: Calculate Allele Frequency & Linear Regression
   federated learning — training happens inside each TRE; model information leaves.
 - Use case X: iterative model training (DL or similar)
 
-[View API Architecture Use Case](API_architecture_use_case.txt)
+[View API Architecture Use Case](docs/architecture/API_architecture_use_case.txt)
 
                  federation_client.py
                          │
