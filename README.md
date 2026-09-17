@@ -66,7 +66,7 @@ python scripts/run_local.py spec/examples/allele_freq.json
 
 **FLARE simulator.** Each run writes its merged result to `server/out/<spec_hash>/result.json`. `released.json` is written only when the disclosure check passes or an overseer approves, and is the output that would leave the server. Run directories are keyed by spec hash, so an earlier `released.json` can survive a later flagged run of the same spec; check `check.json` for the current decision.
 
-`verify.py` compares statistics present in the merged result with pooled truth: allele frequencies even under partial coverage, with truth recomputed over reporting sites; means and OLS coefficients only when every site reports. It skips suppressed statistics, so a run that released nothing can still report `PASS`. It exits non-zero on a deviation beyond `--tol`.
+`verify.py` compares statistics present in the merged result with pooled truth: allele frequencies even under partial coverage, with truth recomputed over reporting sites; means and OLS coefficients only when every site reports. It skips suppressed statistics, so a run that released nothing can still report `PASS`. A filtered spec is skipped entirely — the values are printed for information and it exits zero, because the ground truth covers the unfiltered cohort. It exits non-zero on a deviation beyond `--tol`.
 
 ```sh
 scripts/run_job.sh spec/examples/allele_freq.json
@@ -89,7 +89,7 @@ scripts/up.sh --down
 
 Measured on a real local federation (`local_federation.sh`) over a 30,000-row synthetic cohort split non-IID across three sites with different column names and APIs, 2026-09-17. Allele frequencies match pooled ground truth exactly; exact and FedAvg linear regression agree with pooled OLS to 1.7e-11 and 2.2e-11; a killed client yields `2/3 sites` with exact output for reporting sites; aggregation stays exact at 3, 10, 50, and 100 simulated sites.
 
-FedAvg with `--local-steps 5` converges to the wrong point on this non-IID data (error ≈ 2.4e-2). The evidence is synthetic and local: nobody has run clients on remote Gefion or NextCloud hosts.
+The recorded run reports a coefficient residual of ≈ 2.4e-2 with `--local-steps 5` on this non-IID data; its full configuration (learning rate, rounds) was not recorded alongside the figure. The evidence is synthetic and local: nobody has run clients on remote Gefion or NextCloud hosts.
 
 **Full figures, scenario detail, caveats, and scaling plot: [docs/results.md](docs/results.md).**
 
@@ -105,8 +105,8 @@ Local filters enforce per-site output rules before aggregates leave a TRE; the s
 | **Safe projects** | `project_id` must be in [`projects.yaml`](projects.yaml) (per-site allow-list); otherwise nothing is computed and the refusal is audited. |
 | **Safe people** | Provisioned FLARE identities: every client and the admin have mTLS certs signed by the project CA (`scripts/provision.sh`, `scripts/onboard_tre.sh`). |
 | **Safe settings** | TRE containers are read-only, data mounted `:ro`, on an `internal: true` network; only the FLARE client dials **out** to the server. `scripts/up.sh` asserts a TRE cannot reach the internet. |
-| **Safe data** | Canonical variables only; adapters never expose rows — each mock API refuses row-level requests on its own, and the `gram`/`describe`/`value_counts` primitives are the only things an adapter can ask for. |
-| **Safe outputs** | Two layers. Site: [`adapters/safe_output.py`](adapters/safe_output.py) — aggregate allow-list, `n < k` ⇒ nothing leaves, cell `< k` suppressed, suppressed genotype cell ⇒ allele counts withheld, per-round audit. Server: [`server/disclosure_check.py`](server/disclosure_check.py) — k-anonymity on the merged table, dominance (one site > 90 % of a cell), minimum two sites, site-suppression, differencing against previous releases by spec signature. Flagged ⇒ [`server/overseer_queue.py`](server/overseer_queue.py) (`list / show / approve / reject`), human decision logged. |
+| **Safe data** | Canonical variables only; adapters never expose rows — each mock API refuses row-level requests on its own, and an adapter can ask only for schema metadata and the four aggregate primitives `count`, `describe`, `value_counts` and `gram`. |
+| **Safe outputs** | Two layers. Site: [`adapters/safe_output.py`](adapters/safe_output.py) — aggregate allow-list, `n < k` ⇒ nothing leaves, cell `< k` suppressed, suppressed genotype cell ⇒ allele counts withheld, per-round audit. Server: [`server/disclosure_check.py`](server/disclosure_check.py) — minimum-cell-size checks on merged counts, dominance (one site > 90 % of a cell), minimum two sites, site-suppression, differencing against previous releases by spec signature. Flagged ⇒ [`server/overseer_queue.py`](server/overseer_queue.py) (`list / show / approve / reject`), human decision logged. |
 
 </details>
 
@@ -145,7 +145,7 @@ See the [documentation index](docs/README.md) for reference material, planning h
 
 1. **Request** — researcher submits a JSON analysis spec using canonical variable names; the orchestrator resolves them to local columns through the harmonisation map.
 2. **Dispatch** — the FLARE server sits outside every TRE. TREs dial out over gRPC/TLS, so secure environments expose no inbound ports.
-3. **Local execution** — each TRE runs a FLARE client with an adapter to its native REST, DataSHIELD/R, or SQL gateway. Compute happens where data is; record-level data never leaves.
+3. **Local execution** — each TRE runs a FLARE client with an adapter to its native REST, DataSHIELD-style Python mock, or SQL gateway. Compute happens where data is; record-level data never leaves.
 4. **Safe output** — each site filters results before they leave: aggregates only, small-count suppression (`k = min_cell_size`, default 5).
 5. **Aggregation** — the server combines site results into federated statistics; feature selection and logistic regression follow later.
 6. **Disclosure check** — passing results are written to `released.json`; the release decision is recorded in the server release log. Flagged results enter the overseer queue for a human decision.
