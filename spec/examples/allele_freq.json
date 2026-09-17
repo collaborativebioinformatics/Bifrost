@@ -1,0 +1,1 @@
+{"analysis_type": "allele_freq", "variables": ["snp_rs001", "snp_rs002", "snp_rs003", "snp_rs004", "snp_rs005"], "project_id": "ncfh-2026-demo", "min_cell_size": 5}
