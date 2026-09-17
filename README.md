@@ -22,22 +22,40 @@ The local pipeline runs without FLARE: three mock TREs speaking different APIs, 
 
 ## Running it
 
-Needs Python 3.11 or 3.12, run from the repository root. `pyproject.toml` declares a `server` package that is not in the tree, so an editable install will fail until that entry is fixed.
+Needs Python 3.11 or 3.12, run from the repository root.
 
-Tests:
+**Install dependencies.** `pyproject.toml` declares a `server` package that is not in the tree, so `pip install -e .` fails. Until that entry is fixed, install them directly:
+
+```
+pip install "numpy>=1.26" "pandas>=2.2" "pyyaml>=6.0" "pydantic>=2.6" "httpx>=0.27" \
+            "fastapi>=0.110" "uvicorn>=0.29" "duckdb>=1.0" "nvflare>=2.5,<2.10" "pytest>=8.0"
+```
+
+**Generate the synthetic data.** The per-site CSVs are gitignored, and `scripts/up.sh` only regenerates them when `data/ground_truth.json` is absent — which it never is, because that file is tracked. So run this explicitly on a fresh checkout, before either launch path below:
+
+```
+python data/generate.py
+```
+
+**Tests:**
 
 ```
 python -m pytest -q
 ```
 
-Without Docker — start each TRE as a local uvicorn process on ports 8001 upwards, then send one analysis spec to all of them:
+**Without Docker**, in two terminals. Each TRE runs as a local uvicorn process on ports 8001 upwards. In the first terminal:
 
 ```
-python scripts/dev_tres.py &
+python scripts/dev_tres.py
+```
+
+Wait for `TREs running; Ctrl-C to stop`, then send one analysis spec to every site from a second terminal:
+
+```
 python scripts/run_local.py spec/examples/allele_freq.json
 ```
 
-With Docker — builds the TRE containers, checks each one's health endpoint from its own client container, and asserts that no TRE can reach the public internet:
+**With Docker** — builds the TRE containers, checks each one's health endpoint from its own client container, and asserts that no TRE can reach the public internet:
 
 ```
 scripts/up.sh
