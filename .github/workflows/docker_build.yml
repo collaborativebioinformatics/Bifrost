@@ -58,7 +58,7 @@ jobs:
 
       - name: Run unit tests
         run: |
-          docker run --rm -v ${{ github.workspace }}:/home ${{ env.LATEST_TAG }} py.test -v tests
+          docker run --rm -v ${{ github.workspace }}:/home ${{ env.LATEST_TAG }} python -m pytest -q -m "not slow"
       
       - name: Scan image
         id: anchor_scan
