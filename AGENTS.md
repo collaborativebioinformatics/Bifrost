@@ -28,9 +28,7 @@ Implemented:
 
 A real (non-simulator) FLARE federation runs two ways and both are verified: `scripts/local_federation.sh` (separate processes on one machine) and Docker (`scripts/provision.sh && scripts/up.sh --flare`, then `docker compose exec flare-server python scripts/run_job.py --mode prod ...`): images build, TREs are internet-isolated, clients register over mTLS, all example specs pass, a stopped `flare-brev` container yields `2/3 sites`. Not implemented: UI. Not yet run: clients on remote hosts (Gefion / NextCloud).
 
-Known discrepancies — do not treat these as existing:
-
-- `docs/architecture/flowchart.drawio` does not match the rendered `docs/architecture/flowchart_drawio.svg`.
+`docs/architecture/flowchart.drawio` is the editable source for the implemented-flow overview. When changing that overview, regenerate both `docs/architecture/flowchart_drawio.svg` and `docs/architecture/flowchart.png` from it.
 
 Planning documents: [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md) (milestone-based; M0–M6 done) and [docs/variables.md](docs/variables.md) (documents the implemented variables; the local column names in it are invented for the mock TREs and not agreed with any real site). See [docs/README.md](docs/README.md) for the documentation index.
 
