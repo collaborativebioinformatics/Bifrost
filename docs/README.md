@@ -10,8 +10,8 @@
 
 - [Roadmap](roadmap.md) holds the original project goals in full. They are targets and historical intent, not current behaviour.
 - [Build plan](BUILD_PLAN.md) is the milestone-based implementation plan. It records proposed and historical intent; use the repository and root [README](../README.md) to establish current behavior.
-- [API architecture use case](architecture/API_architecture_use_case.txt) and the [diagram source](architecture/flowchart.drawio) are architecture proposals.
-- The [rendered diagram](architecture/flowchart_drawio.svg) and [PNG diagram](architecture/flowchart.png) are retained with their source. The Draw.io source and rendered SVG are known not to match; do not treat that mismatch as a new defect.
+- [API architecture use case](architecture/API_architecture_use_case.txt) is a proposal.
+- The current implemented flow is documented in the editable [Draw.io source](architecture/flowchart.drawio), [SVG overview](architecture/flowchart_drawio.svg), and [PNG overview](architecture/flowchart.png). Regenerate the SVG and PNG from the Draw.io source when changing the overview.
 
 ## Scaling evidence
 

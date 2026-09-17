@@ -1,85 +1,33 @@
-<mxfile host="app.diagrams.net" modified="2026-09-16T12:30:00.000Z" agent="Claude" version="24.0.0">
-  <diagram id="cross-tre-simple" name="Cross-TRE Federated Analysis">
-    <mxGraphModel dx="1200" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="1000" math="0" shadow="0">
-      <root>
-        <mxCell id="0"/>
-        <mxCell id="1" parent="0"/>
-
-        <mxCell id="title" value="Cross-TRE federated analysis (Team 1)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=18;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="40" y="20" width="600" height="40" as="geometry"/>
-        </mxCell>
-
-        <!-- Request path -->
-        <mxCell id="researcher" value="Researcher" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" vertex="1" parent="1">
-          <mxGeometry x="40" y="90" width="160" height="60" as="geometry"/>
-        </mxCell>
-        <mxCell id="spec" value="Analysis spec (JSON)&#xa;canonical variable names" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" vertex="1" parent="1">
-          <mxGeometry x="260" y="90" width="200" height="60" as="geometry"/>
-        </mxCell>
-        <mxCell id="orchestrator" value="Orchestrator&#xa;(FLARE server, outside TREs)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eeeeee;strokeColor=#333333;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="520" y="90" width="220" height="60" as="geometry"/>
-        </mxCell>
-        <mxCell id="registry" value="Harmonisation map&#xa;canonical → local columns" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;dashed=1;" vertex="1" parent="1">
-          <mxGeometry x="800" y="90" width="200" height="60" as="geometry"/>
-        </mxCell>
-
-        <!-- TREs -->
-        <mxCell id="treA" value="TRE A — REST API" style="swimlane;html=1;fillColor=#ffffff;strokeColor=#333333;fontStyle=1;startSize=28;" vertex="1" parent="1">
-          <mxGeometry x="60" y="240" width="280" height="300" as="geometry"/>
-        </mxCell>
-        <mxCell id="a1" value="FLARE client" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" vertex="1" parent="treA"><mxGeometry x="20" y="40" width="240" height="45" as="geometry"/></mxCell>
-        <mxCell id="a2" value="Adapter → native API&#xa;(local compute, data stays)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" vertex="1" parent="treA"><mxGeometry x="20" y="120" width="240" height="60" as="geometry"/></mxCell>
-        <mxCell id="a3" value="Safe Output filter&#xa;(k ≥ 5, aggregates only)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eeeeee;strokeColor=#333333;" vertex="1" parent="treA"><mxGeometry x="20" y="215" width="240" height="60" as="geometry"/></mxCell>
-        <mxCell id="ae1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="treA" source="a1" target="a2"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="ae2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="treA" source="a2" target="a3"><mxGeometry relative="1" as="geometry"/></mxCell>
-
-        <mxCell id="treB" value="TRE B — DataSHIELD / R" style="swimlane;html=1;fillColor=#ffffff;strokeColor=#333333;fontStyle=1;startSize=28;" vertex="1" parent="1">
-          <mxGeometry x="400" y="240" width="280" height="300" as="geometry"/>
-        </mxCell>
-        <mxCell id="b1" value="FLARE client" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" vertex="1" parent="treB"><mxGeometry x="20" y="40" width="240" height="45" as="geometry"/></mxCell>
-        <mxCell id="b2" value="Adapter → native API&#xa;(local compute, data stays)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" vertex="1" parent="treB"><mxGeometry x="20" y="120" width="240" height="60" as="geometry"/></mxCell>
-        <mxCell id="b3" value="Safe Output filter&#xa;(k ≥ 5, aggregates only)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eeeeee;strokeColor=#333333;" vertex="1" parent="treB"><mxGeometry x="20" y="215" width="240" height="60" as="geometry"/></mxCell>
-        <mxCell id="be1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="treB" source="b1" target="b2"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="be2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="treB" source="b2" target="b3"><mxGeometry relative="1" as="geometry"/></mxCell>
-
-        <mxCell id="treC" value="TRE C — SQL gateway" style="swimlane;html=1;fillColor=#ffffff;strokeColor=#333333;fontStyle=1;startSize=28;" vertex="1" parent="1">
-          <mxGeometry x="740" y="240" width="280" height="300" as="geometry"/>
-        </mxCell>
-        <mxCell id="c1" value="FLARE client" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" vertex="1" parent="treC"><mxGeometry x="20" y="40" width="240" height="45" as="geometry"/></mxCell>
-        <mxCell id="c2" value="Adapter → native API&#xa;(local compute, data stays)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" vertex="1" parent="treC"><mxGeometry x="20" y="120" width="240" height="60" as="geometry"/></mxCell>
-        <mxCell id="c3" value="Safe Output filter&#xa;(k ≥ 5, aggregates only)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eeeeee;strokeColor=#333333;" vertex="1" parent="treC"><mxGeometry x="20" y="215" width="240" height="60" as="geometry"/></mxCell>
-        <mxCell id="ce1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="treC" source="c1" target="c2"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="ce2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="treC" source="c2" target="c3"><mxGeometry relative="1" as="geometry"/></mxCell>
-
-        <!-- Aggregation + output -->
-        <mxCell id="aggregate" value="Aggregation on server&#xa;(federated statistics → later: feature selection / logreg)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eeeeee;strokeColor=#333333;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="380" y="620" width="320" height="60" as="geometry"/>
-        </mxCell>
-        <mxCell id="check" value="Disclosure check OK?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" vertex="1" parent="1">
-          <mxGeometry x="450" y="730" width="180" height="90" as="geometry"/>
-        </mxCell>
-        <mxCell id="results" value="Results + audit log → GitHub" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" vertex="1" parent="1">
-          <mxGeometry x="240" y="870" width="220" height="60" as="geometry"/>
-        </mxCell>
-        <mxCell id="reject" value="Reject, refine spec" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#333333;" vertex="1" parent="1">
-          <mxGeometry x="620" y="870" width="220" height="60" as="geometry"/>
-        </mxCell>
-
-        <!-- Edges -->
-        <mxCell id="lbl_out" value="outbound-only gRPC/TLS (TREs dial out)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontStyle=2;" vertex="1" parent="1"><mxGeometry x="645" y="185" width="260" height="24" as="geometry"/></mxCell>
-        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="researcher" target="spec"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="spec" target="orchestrator"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;endArrow=none;" edge="1" parent="1" source="orchestrator" target="registry"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="orchestrator" target="a1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="630" y="215"/><mxPoint x="200" y="215"/></Array></mxGeometry></mxCell>
-        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="orchestrator" target="b1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="630" y="215"/><mxPoint x="540" y="215"/></Array></mxGeometry></mxCell>
-        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="orchestrator" target="c1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="630" y="215"/><mxPoint x="880" y="215"/></Array></mxGeometry></mxCell>
-        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="a3" target="aggregate"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="b3" target="aggregate"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="c3" target="aggregate"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="aggregate" target="check"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e11" value="yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="check" target="results"><mxGeometry relative="1" as="geometry"/></mxCell>
-        <mxCell id="e12" value="no" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="check" target="reject"><mxGeometry relative="1" as="geometry"/></mxCell>
-      </root>
-    </mxGraphModel>
-  </diagram>
-</mxfile>
+<mxfile host="app.diagrams.net" modified="2026-09-17T14:30:00.000Z" agent="Codex" version="24.7.17"><diagram id="bifrost-overview" name="Bifrost overview"><mxGraphModel dx="1450" dy="850" grid="1" gridSize="10" pageWidth="1100" pageHeight="850" background="#F8FAFC"><root><mxCell id="0" style=""/><mxCell id="1" parent="0" style=""/>
+<mxCell id="title" value="One analysis. Data stays at each site." style="text;html=1;fontSize=30;fontStyle=1;fontColor=#17324D;align=left;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="41" y="28" width="600" height="45" as="geometry"/></mxCell>
+<mxCell id="subtitle" value="Federated computation returns disclosure-checked aggregates — never individual records." style="text;html=1;fontSize=16;fontColor=#55708A;align=left;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="41" y="75" width="675" height="30" as="geometry"/></mxCell>
+<mxCell id="researcher" value="&lt;b&gt;Researcher&lt;/b&gt;&lt;br&gt;chooses an analysis" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B8C8D6;strokeWidth=2;fontSize=16;fontColor=#17324D;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="41" y="145" width="165" height="86" as="geometry"/></mxCell>
+<mxCell id="spec" value="&lt;b&gt;Analysis specification&lt;/b&gt;&lt;br&gt;variables + rules" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEEAFB;strokeColor=#9A8BD2;strokeWidth=2;fontSize=16;fontColor=#312762;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="255" y="145" width="184" height="86" as="geometry"/></mxCell>
+<mxCell id="server" value="&lt;b&gt;Orchestration server&lt;/b&gt;&lt;br&gt;FLARE coordinates the job" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E5F0F5;strokeColor=#4E8CA3;strokeWidth=2;fontSize=16;fontColor=#17324D;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="488" y="135" width="214" height="106" as="geometry"/></mxCell>
+<mxCell id="boundary" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#C6D4DE;strokeWidth=2;dashed=1;fontSize=16;fontStyle=1;fontColor=#55708A;align=left;verticalAlign=top;spacingTop=12;spacingLeft=18;" vertex="1" parent="1"><mxGeometry x="30" y="300" width="761" height="285" as="geometry"/></mxCell>
+<mxCell id="tre-caption" value="Trusted Research&lt;br&gt;Environments&lt;br&gt;Individual records stay local" style="text;html=1;fontSize=16;fontStyle=1;fontColor=#55708A;align=left;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="810" y="350" width="260" height="100" as="geometry"/></mxCell>
+<mxCell id="tre1" value="&lt;b&gt;TRE 1&lt;/b&gt; · REST API&lt;br&gt;&lt;br&gt;&lt;font color=&quot;#296C62&quot;&gt;&lt;b&gt;Private data stays here&lt;/b&gt;&lt;/font&gt;&lt;br&gt;&lt;br&gt;Compute locally&lt;br&gt;Native API → Safe Output" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E4F3F1;strokeColor=#5FA99D;strokeWidth=2;fontSize=16;fontColor=#17324D;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="53" y="350" width="214" height="190" as="geometry"/></mxCell>
+<mxCell id="tre2" value="&lt;b&gt;TRE 2&lt;/b&gt; · DataSHIELD / R&lt;br&gt;&lt;br&gt;&lt;font color=&quot;#5A4B9A&quot;&gt;&lt;b&gt;Private data stays here&lt;/b&gt;&lt;/font&gt;&lt;br&gt;&lt;br&gt;Compute locally&lt;br&gt;Native API → Safe Output" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEEAFB;strokeColor=#9A8BD2;strokeWidth=2;fontSize=16;fontColor=#17324D;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="304" y="350" width="214" height="190" as="geometry"/></mxCell>
+<mxCell id="tre3" value="&lt;b&gt;TRE 3&lt;/b&gt; · SQL gateway&lt;br&gt;&lt;br&gt;&lt;font color=&quot;#315F94&quot;&gt;&lt;b&gt;Private data stays here&lt;/b&gt;&lt;/font&gt;&lt;br&gt;&lt;br&gt;Compute locally&lt;br&gt;Native API → Safe Output" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E5EEFB;strokeColor=#7BA4D5;strokeWidth=2;fontSize=16;fontColor=#17324D;align=center;verticalAlign=middle;spacing=8;" vertex="1" parent="1"><mxGeometry x="555" y="350" width="214" height="190" as="geometry"/></mxCell>
+<mxCell id="only" value="Only permitted aggregates&lt;br&gt;leave each TRE" style="text;html=1;fontSize=15;fontStyle=1;fontColor=#26866D;align=left;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="35" y="600" width="220" height="70" as="geometry"/></mxCell>
+<mxCell id="gate" value="&lt;b&gt;Merge + disclosure check&lt;/b&gt;&lt;br&gt;combined result is checked" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DFF2EA;strokeColor=#5CAF91;strokeWidth=2;fontSize=16;fontColor=#17324D;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="274" y="650" width="255" height="84" as="geometry"/></mxCell>
+<mxCell id="ok" value="&lt;b&gt;OK&lt;/b&gt;&lt;br&gt;released&lt;br&gt;automatically" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DFF2EA;strokeColor=#5CAF91;strokeWidth=2;fontSize=16;fontColor=#17324D;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="600" y="625" width="150" height="68" as="geometry"/></mxCell>
+<mxCell id="footer" value="Mock TREs · logical job flow; clients connect outbound" style="text;html=1;fontSize=14;fontColor=#55708A;align=left;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="41" y="112" width="520" height="24" as="geometry"/></mxCell>
+<mxCell id="flagged" value="&lt;b&gt;FLAGGED&lt;/b&gt;&lt;br&gt;statistics withheld" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF1D9;strokeColor=#D9A84D;strokeWidth=2;fontSize=16;fontColor=#17324D;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="600" y="725" width="150" height="68" as="geometry"/></mxCell>
+<mxCell id="overseer" value="&lt;b&gt;Overseer review&lt;/b&gt;&lt;br&gt;approve or reject" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7E8;strokeColor=#D9A84D;strokeWidth=2;fontSize=16;fontColor=#17324D;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="810" y="725" width="143" height="68" as="geometry"/></mxCell>
+<mxCell id="approved" value="&lt;b&gt;Approved&lt;/b&gt;&lt;br&gt;released" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DFF2EA;strokeColor=#5CAF91;strokeWidth=2;fontSize=15;fontColor=#17324D;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="990" y="690" width="79" height="58" as="geometry"/></mxCell>
+<mxCell id="rejected" value="&lt;b&gt;Rejected&lt;/b&gt;&lt;br&gt;withheld" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDE8E6;strokeColor=#CD6C5C;strokeWidth=2;fontSize=15;fontColor=#17324D;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="990" y="770" width="79" height="58" as="geometry"/></mxCell>
+<mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#55708A;strokeWidth=2;endArrow=classic;endFill=1;" edge="1" parent="1" source="researcher" target="spec"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#55708A;strokeWidth=2;endArrow=classic;endFill=1;" edge="1" parent="1" source="spec" target="server"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#55708A;strokeWidth=2;endArrow=classic;endFill=1;exitX=0.2;exitY=1;exitPerimeter=1;entryX=0.5;entryY=0;entryPerimeter=1;" edge="1" parent="1" source="server" target="tre1"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#55708A;strokeWidth=2;endArrow=classic;endFill=1;exitX=0.5;exitY=1;exitPerimeter=1;entryX=0.5;entryY=0;entryPerimeter=1;" edge="1" parent="1" source="server" target="tre2"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#55708A;strokeWidth=2;endArrow=classic;endFill=1;exitX=0.8;exitY=1;exitPerimeter=1;entryX=0.5;entryY=0;entryPerimeter=1;" edge="1" parent="1" source="server" target="tre3"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#26866D;strokeWidth=2;endArrow=classic;endFill=1;exitX=0.5;exitY=1;exitPerimeter=1;entryX=0.15;entryY=0;entryPerimeter=1;" edge="1" parent="1" source="tre1" target="gate"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#26866D;strokeWidth=2;endArrow=classic;endFill=1;exitX=0.5;exitY=1;exitPerimeter=1;entryX=0.5;entryY=0;entryPerimeter=1;" edge="1" parent="1" source="tre2" target="gate"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#26866D;strokeWidth=2;endArrow=classic;endFill=1;exitX=0.5;exitY=1;exitPerimeter=1;entryX=0.85;entryY=0;entryPerimeter=1;" edge="1" parent="1" source="tre3" target="gate"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e9" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#26866D;strokeWidth=2;endArrow=classic;endFill=1;exitX=1;exitY=0.3;exitPerimeter=1;entryX=0;entryY=0.5;entryPerimeter=1;fontSize=14;fontColor=#26866D;" edge="1" parent="1" source="gate" target="ok"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e10" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#D9A84D;strokeWidth=2;endArrow=classic;endFill=1;exitX=1;exitY=0.75;exitPerimeter=1;entryX=0;entryY=0.5;entryPerimeter=1;fontSize=14;fontColor=#B4771C;" edge="1" parent="1" source="gate" target="flagged"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#D9A84D;strokeWidth=2;endArrow=classic;endFill=1;" edge="1" parent="1" source="flagged" target="overseer"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#26866D;strokeWidth=2;endArrow=classic;endFill=1;exitX=1;exitY=0.25;exitPerimeter=1;entryX=0;entryY=0.5;entryPerimeter=1;fontSize=14;fontColor=#26866D;" edge="1" parent="1" source="overseer" target="approved"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e13" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#CD6C5C;strokeWidth=2;endArrow=classic;endFill=1;exitX=1;exitY=0.75;exitPerimeter=1;entryX=0;entryY=0.5;entryPerimeter=1;fontSize=14;fontColor=#B24A3C;" edge="1" parent="1" source="overseer" target="rejected"><mxGeometry relative="1" as="geometry"/></mxCell>
+</root></mxGraphModel></diagram></mxfile>
