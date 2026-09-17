@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "next dev --webpack",
     "build": "next build --webpack",
-    "start": "next start"
+    "start": "next start",
+    "test": "node --import ./register-jsx-loader.mjs --test"
   },
   "dependencies": {
     "next": "latest",
