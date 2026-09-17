@@ -5,6 +5,10 @@ on:
     tags:
       - "v*.*.*"
 
+permissions:
+  contents: read
+  packages: write
+
 env:
   LATEST_TAG: ghcr.io/collaborativebioinformatics/bifrost:latest
 
