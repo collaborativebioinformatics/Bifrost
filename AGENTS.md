@@ -31,6 +31,7 @@ A real (non-simulator) FLARE federation — provisioned server + clients as sepa
 Known discrepancies — do not treat these as existing:
 
 - `flowchart.drawio` does not match the rendered `flowchart_drawio.svg`.
+- `README.md` has no results table — per-site n, released statistics against ground truth, suppression events, overseer decisions. M6 is still outstanding; the status, setup and "adding a TRE" sections are current.
 
 Planning documents: [BUILD_PLAN.md](BUILD_PLAN.md) (milestone-based; M0–M6 done) and [docs/variables.md](docs/variables.md) (documents the implemented variables; the local column names in it are invented for the mock TREs and not agreed with any real site).
 
