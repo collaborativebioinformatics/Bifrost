@@ -1,4 +1,4 @@
-# Build plan: cross-TRE federated analysis (Federated_APIs — NCFH 2026 hackathon, Team 1)
+# Build plan: cross-TRE federated analysis (Bifrost — NCFH 2026 hackathon, Team 1)
 
 > **Working draft.** Initial draft by Ioannis Christofilogiannis. It is "very generic for now but we will build on it." Architecture, ownership, timings, interfaces, and scope remain subject to team review. The implementation described below is mostly proposed; consult the repository before treating a path or command as available.
 
@@ -78,7 +78,7 @@ These are design goals for discussion. They require implementation and validatio
 The following is a sketch. Except for the existing documentation and diagram files, do not assume these paths or generated artifacts exist.
 
 ```
-Federated_APIs/
+Bifrost/
   README.md, flowchart_drawio.svg
   docs/  variables.md, demo_specs.md
   sites.yaml                                  # the only place sites are listed
