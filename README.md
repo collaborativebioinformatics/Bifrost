@@ -150,7 +150,7 @@ scripts/start_site.sh <tre_id> .remote/<tre_id>      # mock TRE + FLARE client; 
 
 Re-run `python data/generate.py` to re-split the synthetic cohort for the new site count. A new API style is one adapter class implementing the five primitives plus a registry entry; a different local variable name is one `local:` line in [`harmonisation/canonical.yaml`](harmonisation/canonical.yaml) (unlisted sites use the canonical name).
 
-Intended final topology: one client on Gefion, one on NextCloud, server on Brev or AWS — [docs/cloud_demo.md](docs/cloud_demo.md).
+Intended final topology: one client on Gefion, one on NextCloud, server on Brev or AWS — [docs/cloud_demo.md](docs/cloud_demo.md). A client on HUNT Cloud needs a network-opening request first: [runbook section 4](docs/cloud_demo.md#4-site-on-hunt-cloud-optional).
 </details>
 
 ## Five Safes
