@@ -10,7 +10,7 @@ permissions:
   packages: write
 
 env:
-  LATEST_TAG: ghcr.io/collaborativebioinformatics/bifrost:latest
+  LATEST_TAG: ghcr.io/collaborativebioinformatics/heimdall:latest
 
 jobs:
   docker:
@@ -24,7 +24,7 @@ jobs:
         with:
           # list of Docker images to use as base name for tags
           images: |
-            ghcr.io/${{ github.repository_owner }}/bifrost       
+            ghcr.io/${{ github.repository_owner }}/heimdall
           tags: |
             type=schedule
             type=ref,event=branch
