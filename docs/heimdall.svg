@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="840" viewBox="0 0 1280 840" role="img" aria-labelledby="title desc">
   <title id="title">Heimdall</title>
-  <desc id="desc">The watchman's eye: a luminous teal-to-violet bridge arc forms the upper lid over a ringed iris, with three lit sites on the horizon beneath, above a widely spaced Heimdall wordmark. Transparent background, for dark backgrounds.</desc>
+  <desc id="desc">A luminous teal-to-violet bridge arc over a single watch-beacon on the horizon, with three lit sites beneath, above a widely spaced Heimdall wordmark. Transparent background, for dark backgrounds.</desc>
   <defs>
     <linearGradient id="spectrum" x1="200" y1="462" x2="1080" y2="200" gradientUnits="userSpaceOnUse">
       <stop stop-color="#12B5A0"/>
@@ -9,21 +9,15 @@
       <stop offset=".86" stop-color="#9CC4F5"/>
       <stop offset="1" stop-color="#A9A4FF"/>
     </linearGradient>
-    <linearGradient id="lower" x1="200" y1="0" x2="1080" y2="0" gradientUnits="userSpaceOnUse">
+    <linearGradient id="inner" x1="270" y1="462" x2="1010" y2="240" gradientUnits="userSpaceOnUse">
       <stop stop-color="#0FA394"/>
-      <stop offset=".55" stop-color="#3DD1C1"/>
+      <stop offset=".62" stop-color="#3DD1C1"/>
       <stop offset="1" stop-color="#86AEEC"/>
     </linearGradient>
-    <radialGradient id="iris" cx="640" cy="452" r="118" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#0B2A33"/>
-      <stop offset=".42" stop-color="#0FA394"/>
-      <stop offset=".72" stop-color="#4BE3CF"/>
-      <stop offset="1" stop-color="#9CC4F5"/>
-    </radialGradient>
-    <linearGradient id="horizon" x1="110" y1="0" x2="1170" y2="0" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#2BC4AE" stop-opacity=".2"/>
-      <stop offset=".5" stop-color="#E6FFF8" stop-opacity=".9"/>
-      <stop offset="1" stop-color="#8FB8F0" stop-opacity=".2"/>
+    <linearGradient id="deck" x1="110" y1="0" x2="1170" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2BC4AE"/>
+      <stop offset=".5" stop-color="#E6FFF8"/>
+      <stop offset="1" stop-color="#8FB8F0"/>
     </linearGradient>
     <linearGradient id="word" x1="180" y1="0" x2="1100" y2="0" gradientUnits="userSpaceOnUse">
       <stop stop-color="#12B5A0"/>
@@ -45,63 +39,46 @@
     <filter id="glowText" x="-10%" y="-40%" width="120%" height="180%" color-interpolation-filters="sRGB">
       <feGaussianBlur stdDeviation="14"/>
     </filter>
-    <clipPath id="eyeClip">
-      <path d="M 200,462 C 252,50 1028,50 1080,462 C 950,646 330,646 200,462 Z"/>
-    </clipPath>
   </defs>
 
-  <!-- Soft light bleed behind the lids and the gaze -->
+  <!-- Soft light bleed behind the span, the deck and the beacon -->
   <g fill="none" stroke-linecap="round" filter="url(#glow)" opacity=".6">
     <path d="M 200,462 C 252,50 1028,50 1080,462" stroke="url(#spectrum)" stroke-width="54"/>
-    <path d="M 200,462 C 330,646 950,646 1080,462" stroke="url(#lower)" stroke-width="24"/>
+    <path d="M110 470H1170" stroke="url(#deck)" stroke-width="26"/>
   </g>
-  <circle cx="640" cy="452" r="150" fill="#12B5A0" fill-opacity=".28" filter="url(#glow)"/>
+  <circle cx="640" cy="352" r="96" fill="#4BE3CF" fill-opacity=".22" filter="url(#glow)"/>
 
-  <!-- The eye: iris and pupil, clipped to the space between the lids -->
-  <g clip-path="url(#eyeClip)">
-    <circle cx="640" cy="452" r="118" fill="url(#iris)"/>
-    <g fill="none" stroke="#E6FFF8" stroke-opacity=".28">
-      <circle cx="640" cy="452" r="92" stroke-width="2"/>
-      <circle cx="640" cy="452" r="66" stroke-width="1.5"/>
-    </g>
-    <!-- iris rays: the hundred leagues he sees -->
-    <g stroke="#E6FFF8" stroke-opacity=".22" stroke-width="2" stroke-linecap="round">
-      <path d="M640 346V372 M640 532V558 M534 452H560 M720 452H746 M565 377L583 395 M697 509L715 527 M715 377L697 395 M583 509L565 527"/>
-    </g>
-    <circle cx="640" cy="452" r="46" fill="#071A22"/>
-    <circle cx="640" cy="452" r="46" fill="none" stroke="#4BE3CF" stroke-opacity=".8" stroke-width="3"/>
-    <circle cx="618" cy="428" r="12" fill="#FFFFFF" fill-opacity=".92"/>
-    <circle cx="666" cy="478" r="5" fill="#A9F2F0" fill-opacity=".7"/>
-  </g>
-
-  <!-- The lids: the bridge above, the shore below -->
+  <!-- The bridge -->
   <g fill="none" stroke-linecap="round">
-    <path d="M 270,462 C 318,140 962,140 1010,462" stroke="#7FE0D2" stroke-opacity=".35" stroke-width="3"/>
+    <path d="M 270,462 C 318,140 962,140 1010,462" stroke="url(#inner)" stroke-width="12"/>
     <path d="M 200,462 C 252,50 1028,50 1080,462" stroke="url(#spectrum)" stroke-width="38"/>
-    <path d="M 200,462 C 330,646 950,646 1080,462" stroke="url(#lower)" stroke-width="16"/>
+    <path d="M110 470H1170" stroke="url(#deck)" stroke-width="18"/>
+    <path d="M200 470V532 M1080 470V532" stroke="url(#deck)" stroke-width="20"/>
   </g>
 
-  <!-- The corners of the eye light both shores -->
-  <circle cx="200" cy="462" r="26" fill="#8FEFDF" fill-opacity=".5" filter="url(#glowSm)"/>
-  <circle cx="1080" cy="462" r="26" fill="#8FEFDF" fill-opacity=".5" filter="url(#glowSm)"/>
-  <circle cx="200" cy="462" r="11" fill="#E4FDF6"/>
-  <circle cx="1080" cy="462" r="11" fill="#E4FDF6"/>
+  <!-- The watchman's beacon: one ring, one light, under the span -->
+  <circle cx="640" cy="352" r="62" fill="none" stroke="#4BE3CF" stroke-width="10"/>
+  <circle cx="640" cy="352" r="24" fill="#12B5A0"/>
+  <circle cx="640" cy="352" r="24" fill="#4BE3CF" fill-opacity=".55" filter="url(#glowSm)"/>
 
-  <!-- Horizon with three watched sites -->
-  <path d="M110 640H1170" stroke="url(#horizon)" stroke-width="3" stroke-linecap="round"/>
-  <g stroke="#7FE0D2" stroke-opacity=".35" stroke-width="2" fill="none">
-    <path d="M440 640V600 M640 640V590 M840 640V600"/>
-  </g>
-  <g>
-    <circle cx="440" cy="640" r="16" fill="#8FEFDF" fill-opacity=".45" filter="url(#glowSm)"/>
-    <circle cx="640" cy="640" r="16" fill="#8FEFDF" fill-opacity=".45" filter="url(#glowSm)"/>
-    <circle cx="840" cy="640" r="16" fill="#8FEFDF" fill-opacity=".45" filter="url(#glowSm)"/>
-    <circle cx="440" cy="640" r="7" fill="#E4FDF6"/>
-    <circle cx="640" cy="640" r="7" fill="#E4FDF6"/>
-    <circle cx="840" cy="640" r="7" fill="#E4FDF6"/>
-  </g>
+  <!-- Shore lights -->
+  <circle cx="110" cy="470" r="26" fill="#8FEFDF" fill-opacity=".5" filter="url(#glowSm)"/>
+  <circle cx="1170" cy="470" r="26" fill="#8FEFDF" fill-opacity=".5" filter="url(#glowSm)"/>
+  <circle cx="110" cy="470" r="11" fill="#E4FDF6"/>
+  <circle cx="1170" cy="470" r="11" fill="#E4FDF6"/>
 
-  <text x="656" y="750" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="132" font-weight="500" letter-spacing="26" fill="#7FE6D8" fill-opacity=".35" filter="url(#glowText)">HEIMDALL</text>
-  <text x="656" y="750" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="132" font-weight="500" letter-spacing="26" fill="url(#word)">HEIMDALL</text>
-  <path d="M540 796H740" stroke="url(#rule)" stroke-width="4" stroke-linecap="round"/>
+  <!-- Three watched sites beneath the deck -->
+  <g stroke="#7FE0D2" stroke-opacity=".35" stroke-width="3" fill="none">
+    <path d="M440 470V560 M640 470V560 M840 470V560"/>
+  </g>
+  <circle cx="440" cy="566" r="18" fill="#8FEFDF" fill-opacity=".45" filter="url(#glowSm)"/>
+  <circle cx="640" cy="566" r="18" fill="#8FEFDF" fill-opacity=".45" filter="url(#glowSm)"/>
+  <circle cx="840" cy="566" r="18" fill="#8FEFDF" fill-opacity=".45" filter="url(#glowSm)"/>
+  <circle cx="440" cy="566" r="8" fill="#4BE3CF"/>
+  <circle cx="640" cy="566" r="8" fill="#4BE3CF"/>
+  <circle cx="840" cy="566" r="8" fill="#4BE3CF"/>
+
+  <text x="656" y="736" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="132" font-weight="500" letter-spacing="26" fill="#7FE6D8" fill-opacity=".35" filter="url(#glowText)">HEIMDALL</text>
+  <text x="656" y="736" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="132" font-weight="500" letter-spacing="26" fill="url(#word)">HEIMDALL</text>
+  <path d="M540 782H740" stroke="url(#rule)" stroke-width="4" stroke-linecap="round"/>
 </svg>

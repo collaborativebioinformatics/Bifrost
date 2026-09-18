@@ -1,83 +1,85 @@
-# Heimdall
+<p align="center">
+  <img src="docs/heimdall.svg" alt="Heimdall" width="560">
+</p>
 
-![Heimdall Logo](docs/heimdall.svg)
+<p align="center">
+  <b>Run one analysis across many Trusted Research Environments. No record ever leaves its TRE.</b><br>
+  <sub>Named after the watchman who guards the bridge Bifrost: sees a hundred leagues, hears the grass grow, lets nothing cross without his say.</sub>
+</p>
 
-*Named after the watchman of the gods, who guards the bridge Bifrost: he sees a hundred leagues, hears the grass grow, and lets nothing cross without his say. Here he stands between isolated TREs so analyses can cross while the data never does.*
+<p align="center">
+  <a href="https://github.com/collaborativebioinformatics/Bifrost/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/collaborativebioinformatics/Bifrost/actions/workflows/ci.yml/badge.svg"></a>
+  <img alt="Python 3.11+" src="https://img.shields.io/badge/python-3.11%20%7C%203.12-3776AB?logo=python&logoColor=white">
+  <img alt="NVIDIA FLARE 2.9" src="https://img.shields.io/badge/NVIDIA%20FLARE-2.9-76B900?logo=nvidia&logoColor=white">
+  <img alt="tests" src="https://img.shields.io/badge/tests-111%20fast%20%2B%204%20simulator-1FB89A">
+  <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-lightgrey"></a>
+</p>
 
- 
-Analyse data across research environments without moving individual records.
+---
 
-Calculate allele frequencies or fit linear regression across participating sites, with disclosure checks before results are released. Each Trusted Research Environment (TRE) computes behind its own API; Heimdall combines permitted aggregates with NVIDIA FLARE.
+Each Trusted Research Environment (TRE) keeps its own data, its own API and its own column names. A researcher writes **one** analysis in canonical variable names; a FLARE client inside every TRE translates it through an adapter, runs it against the native API, filters the output for disclosure risk, and sends back **aggregates only**. An NVIDIA FLARE server outside all TREs merges them, checks the merged result again, and either releases it or holds it for a human overseer.
 
-![Cross-TRE federated analysis flowchart](docs/architecture/flowchart_drawio.svg)
-
-[Edit the diagram](docs/architecture/flowchart.drawio) · [Original external diagram](https://drive.google.com/file/d/1j9t8W-cFVBYgHGrFrLGP5keU2vaFtE-l/view?usp=sharing)
-
-## What you can do
-
-| Use case | What leaves each TRE | Result |
+| Use case | What leaves each TRE | What you get |
 | --- | --- | --- |
-| **Allele frequency** | Disclosure-checked genotype counts | Federated allele frequencies |
-| **Linear regression** | OLS sufficient statistics or model parameters | Exact federated OLS or FedAvg regression |
-| **Logistic regression** | Per-round gradient/Hessian of the log-likelihood | Federated logistic regression (Newton-Raphson/IRLS), exact to the pooled MLE |
+| **Allele frequency** | disclosure-checked genotype counts | federated allele frequencies, exact |
+| **Linear regression** | OLS sufficient statistics, or β per round | exact federated OLS, or FedAvg |
+| **Logistic regression** | per-round gradient and Hessian of the log-likelihood | Newton-Raphson / IRLS, exact to the pooled MLE |
 
-Record-level data stays in the TRE. The server merges aggregates, applies a disclosure check, and records the release decision. Passing results are released automatically; flagged results wait for an overseer decision.
+Built by Team 1 at the NCFH 2026 hackathon. Three mock TREs with deliberately different APIs (REST, DataSHIELD-style, SQL) stand in for real sites; the same code runs in-process, in the FLARE simulator, as a real mTLS federation on one machine, and in Docker.
 
-## Try it
+## Quick start
 
-Run from the repository root with Python 3.11 or 3.12, Bash, and standard Unix tools (macOS or Linux).
+Python 3.11 or 3.12, Bash, macOS or Linux, from the repository root:
 
 ```sh
 pip install -e ".[dev]"
-python data/generate.py
-```
-
-Generate the synthetic data explicitly on a fresh checkout: per-site CSVs are gitignored, and `scripts/up.sh` regenerates them only when the tracked `data/ground_truth.json` is absent.
-
-The recommended local path runs a provisioned FLARE server and one client per TRE as separate mTLS gRPC processes, submitting jobs through the admin API. It starts the TREs itself; nothing else should be running.
-
-```sh
-scripts/local_federation.sh up
+python data/generate.py                       # 30 000-row synthetic cohort, split non-IID over the sites in sites.yaml
+scripts/local_federation.sh up                # provisioned FLARE server + one client per TRE, separate processes, mTLS
 scripts/local_federation.sh job spec/examples/allele_freq.json
 scripts/local_federation.sh job spec/examples/fed_linreg.json --fedavg --rounds 10
 scripts/local_federation.sh job spec/examples/fed_logreg.json --rounds 25
 scripts/local_federation.sh down
 ```
 
-<details>
-<summary>Other launch modes, tests, and verification</summary>
+Every job prints its coverage (`3/3 sites`), a verification table against the pooled ground truth, and the overseer queue.
 
-The fast suite needs no network. The FLARE simulator suite is marked `slow` and needs `nvflare` installed:
+**Researcher UI** (three terminals):
 
 ```sh
-python -m pytest -q -m "not slow"    # 111 tests
+python scripts/dev_tres.py                                          # the mock TREs
+SERVER_OUT=server/api_out uvicorn server.api:app --port 8500        # HTTP API, OpenAPI at /docs
+cd frontend && npm install && npm run dev                           # Next.js UI on :3000
+```
+
+<details>
+<summary>Other launch modes, tests and verification</summary>
+
+The fast suite needs no network; the FLARE simulator suite is marked `slow`:
+
+```sh
+python -m pytest -q -m "not slow"    # 111 tests, ~3 s
 python -m pytest -q -m slow          # 4 tests, ~70 s
 ```
 
-The launch modes are alternatives, not steps. `scripts/dev_tres.py` takes ports 8001–8003; `sites.yaml` assigns the FLARE server `fed_learn_port: 8002` and `admin_port: 8003`. Stop `dev_tres.py` before starting the real federation or Docker: both start their own TREs.
+Launch modes are alternatives, not steps. `scripts/dev_tres.py` takes ports 8001–8003; `sites.yaml` gives the FLARE server 8002/8003. Stop `dev_tres.py` before the real federation or Docker: both start their own TREs.
 
-For direct adapters and the simulator, start the TREs in their own terminal, wait for `TREs running; Ctrl-C to stop`, then run the analysis from a second terminal:
+**Direct adapters (development only)** — no server disclosure check, no overseer; one failing TRE aborts the run:
 
 ```sh
 python scripts/dev_tres.py
-```
-
-**Direct adapters (development only).** This merges site results without the server disclosure check or overseer queue, so its output has not passed release control. One failing TRE aborts the run rather than yielding partial coverage.
-
-```sh
 python scripts/run_local.py spec/examples/allele_freq.json
 ```
 
-**FLARE simulator.** Each run writes its merged result to `server/out/<spec_hash>/result.json`. `released.json` is written only when the disclosure check passes or an overseer approves, and is the output that would leave the server. Run directories are keyed by spec hash, so an earlier `released.json` can survive a later flagged run of the same spec; check `check.json` for the current decision.
-
-`verify.py` compares statistics present in the merged result with pooled truth: allele frequencies even under partial coverage, with truth recomputed over reporting sites; means and OLS coefficients only when every site reports. It skips suppressed statistics, so a run that released nothing can still report `PASS`. A filtered spec is skipped entirely — the values are printed for information and it exits zero, because the ground truth covers the unfiltered cohort. It exits non-zero on a deviation beyond `--tol`.
+**FLARE simulator** — one process, real controllers and executors. Each run writes `server/out/<spec_hash>/result.json`; `released.json` appears only when the disclosure check passes or an overseer approves, and is what would leave the server. Directories are keyed by spec hash, so an earlier `released.json` can outlive a later flagged run of the same spec — `check.json` holds the current decision.
 
 ```sh
 scripts/run_job.sh spec/examples/allele_freq.json
 python scripts/verify.py server/out/<spec_hash>/result.json
 ```
 
-**Docker.** This builds the TRE and FLARE images, starts each TRE on its own `internal: true` network with only its FLARE client also on `federation`, checks each health endpoint from its client container, and asserts that no TRE can reach the public internet. Submit jobs inside the server container; `server/out/` is a host bind mount.
+`verify.py` compares whatever the merged result contains with the pooled truth: allele frequencies even under partial coverage (truth recomputed over the reporting sites), means and coefficients only when every site reported. Suppressed statistics are skipped, so a run that released nothing can still `PASS`; filtered specs are printed for information only and exit zero. Any deviation beyond `--tol` exits non-zero.
+
+**Docker** — builds the TRE and FLARE images, puts each TRE on its own `internal: true` network with only its FLARE client also on `federation`, health-checks every TRE from its client container and asserts no TRE can reach the public internet. Jobs are submitted inside the server container; `server/out/` is a host bind mount.
 
 ```sh
 scripts/provision.sh && scripts/up.sh --flare
@@ -86,160 +88,114 @@ python scripts/verify.py server/out/41174610ab2bece0/result.json
 scripts/up.sh --down
 ```
 
-`spec/examples/` holds allele frequency, a filtered variant, a safe-output rejection case, federated linear regression, and federated logistic regression.
+**Cloud** — server on a VM, sites anywhere, kits pasted through a browser terminal: [docs/cloud_demo.md](docs/cloud_demo.md).
+
+`spec/examples/` holds allele frequency, a filtered variant, a safe-output rejection case, federated linear regression and federated logistic regression ([docs/demo_specs.md](docs/demo_specs.md)).
 </details>
+
+## How it works
+
+<p align="center">
+  <img src="docs/architecture/flowchart_drawio.svg" alt="Cross-TRE federated analysis flowchart" width="820">
+</p>
+
+1. **Request** — a JSON `AnalysisSpec` in canonical variable names; hashed, and that hash keys every log.
+2. **Dispatch** — the FLARE server sits outside every TRE; clients dial **out** over mTLS gRPC. No inbound ports in a secure environment.
+3. **Local execution** — the FLARE client loads the adapter for its own `tre_id` and speaks the TRE's native API (REST, DataSHIELD-style, SQL gateway). Adapters can ask only for schema metadata and five aggregate primitives: `count`, `describe`, `value_counts`, `gram`, `irls_step`.
+4. **Safe output** — inside the TRE, before the FLARE client sees anything: project allow-list, aggregate allow-list, `n < k` ⇒ nothing leaves, cell `< k` suppressed (and anything derivable from it), one audit line per request and per round.
+5. **Aggregation** — everything the server merges is a sum (counts, Gram matrices, gradients and Hessians, n-weighted β), so merging is exact, order-free and straggler-tolerant: `min_clients` + `wait_time`, never wait-for-all; a missing site is reported as `2/3 sites`.
+6. **Disclosure check and release** — on the merged table: minimum cell size, dominance, ≥ 2 sites, site-level suppressions, differencing against earlier releases. Pass ⇒ `released.json`; flag ⇒ overseer queue, human decision logged.
+
+[Edit the diagram](docs/architecture/flowchart.drawio) · [Original external diagram](https://drive.google.com/file/d/1j9t8W-cFVBYgHGrFrLGP5keU2vaFtE-l/view?usp=sharing)
 
 ## Results
 
-Measured on a real local federation (`local_federation.sh`) over a 30,000-row synthetic cohort split non-IID across three sites with different column names and APIs, 2026-09-17. Allele frequencies match pooled ground truth exactly; exact and FedAvg linear regression agree with pooled OLS to 1.7e-11 and 2.2e-11; a killed client yields `2/3 sites` with exact output for reporting sites; aggregation stays exact at 3, 10, 50, and 100 simulated sites.
+Measured on a real local federation (`local_federation.sh`), 30 000-row synthetic cohort split non-IID across three sites with different column names and APIs, 2026-09-17. Full figures, scenario detail and caveats: [docs/results.md](docs/results.md).
 
-Federated averaging with `--local-steps 5` does not reach pooled OLS on this non-IID data: holding learning rate and round count fixed, one local step converges while five leaves a residual of ~2.3e-2 that is unchanged from 10 to 200 rounds ([docs/local_steps_controlled.md](docs/local_steps_controlled.md)). The evidence is synthetic and local: nobody has run clients on remote Gefion or NextCloud hosts.
+| Scenario | Outcome |
+| --- | --- |
+| Allele frequency, 5 SNPs, 3 sites | identical to pooled ground truth (error 0) |
+| Linear regression, exact (summed Gram matrices) | max coefficient error 1.7e-11 vs pooled OLS |
+| Linear regression, FedAvg, 10 rounds (only β leaves) | 2.2e-11; five local steps per round leave a ~2.3e-2 residual — the classic non-IID bias ([controlled comparison](docs/local_steps_controlled.md)) |
+| Logistic regression, Newton-Raphson / IRLS | exact to the pooled MLE |
+| Deliberate rejection (`min_cell_size: 100`) | every site withholds the small cell and the derived allele counts; server flags, overseer approves, release logged |
+| One client killed / one container stopped | `2/3 sites`, still exact for the reporting sites, nobody waited |
+| 3 → 100 simulated TREs | exact at every N; merging 100 results < 1 ms |
 
-**Full figures, scenario detail, caveats, and scaling plot: [docs/results.md](docs/results.md).**
+<p align="center">
+  <img src="docs/scaling.png" alt="Round time vs number of TREs" width="620">
+</p>
 
-## Five Safes mapping
-
-Local filters enforce per-site output rules before aggregates leave a TRE; the server checks the combined result before release. The detailed control mapping is available below.
-
-<details>
-<summary>Five Safes control mapping</summary>
-
-| Safe | Mechanism here |
-|---|---|
-| **Safe projects** | `project_id` must be in [`projects.yaml`](projects.yaml) (per-site allow-list); otherwise nothing is computed and the refusal is audited. |
-| **Safe people** | Provisioned FLARE identities: every client and the admin have mTLS certs signed by the project CA (`scripts/provision.sh`, `scripts/onboard_tre.sh`). |
-| **Safe settings** | TRE containers are read-only, data mounted `:ro`, on an `internal: true` network; only the FLARE client dials **out** to the server. `scripts/up.sh` asserts a TRE cannot reach the internet. |
-| **Safe data** | Canonical variables only; adapters never expose rows — each mock API refuses row-level requests on its own, and an adapter can ask only for schema metadata and the four aggregate primitives `count`, `describe`, `value_counts` and `gram`. |
-| **Safe outputs** | Two layers. Site: [`adapters/safe_output.py`](adapters/safe_output.py) — aggregate allow-list, `n < k` ⇒ nothing leaves, cell `< k` suppressed, suppressed genotype cell ⇒ allele counts withheld, per-round audit. Server: [`server/disclosure_check.py`](server/disclosure_check.py) — minimum-cell-size checks on merged counts, dominance (one site > 90 % of a cell), minimum two sites, site-suppression, differencing against previous releases by spec signature. Flagged ⇒ [`server/overseer_queue.py`](server/overseer_queue.py) (`list / show / approve / reject`), human decision logged. |
-
-</details>
+The evidence is synthetic and single-machine (plus Docker). Nobody has yet run clients on remote Gefion or NextCloud hosts.
 
 ## Adding a TRE
 
-`sites.yaml` is the only place sites are listed; `docker-compose.yml` and `flare/project.yml` are generated from it. One command registers a site, regenerates both, provisions the project CA, and packs an mTLS client kit:
+`sites.yaml` is the only place sites exist; `docker-compose.yml`, `flare/project.yml`, certificates and kits are generated from it.
 
 ```sh
 scripts/onboard_tre.sh <tre_id> [adapter] [api_url] [region]
 ```
 
+That registers the site, regenerates everything, provisions the project CA, packs `flare/kits/<tre_id>.tgz` and prints the one firewall rule the TRE needs: outbound TCP to the FLARE server, nothing inbound.
+
 <details>
-<summary>Remote deployment and adapter details</summary>
+<summary>Remote hosts, new API styles, new variable names</summary>
 
-For a TRE outside the local Docker network, set `server.host` in `sites.yaml` to an address that TRE can reach **before** running this. The default `flare-server` is Docker DNS, and the client kit contains the address set when packed.
-
-It writes `flare/kits/<tre_id>.tgz` and prints the one required firewall rule: outbound TCP to the FLARE server, nothing inbound. The archive contains only the mTLS client kit, so the TRE host also needs a repository checkout with dependencies installed. There:
+Set `server.host` in `sites.yaml` to an address the TRE can reach **before** onboarding; the kit contains the address set when it was packed (`flare-server` is Docker DNS). The archive holds only the mTLS client kit, so the TRE host also needs a checkout with dependencies. There:
 
 ```sh
-tar xzf <tre_id>.tgz
-TRE_ID=<tre_id> TRE_API_URL=<api_url> CLIENT_KIT=$PWD/<tre_id> scripts/start_client.sh
+scripts/kit_import.sh <tre_id>                       # paste the kit printed by scripts/kit_export.sh on the server
+scripts/start_site.sh <tre_id> .remote/<tre_id>      # mock TRE + FLARE client; or sbatch scripts/slurm_site.sbatch
 ```
 
-Re-run `python data/generate.py` to re-split the synthetic cohort for the new site count. A new API style needs one adapter class implementing five primitives and a registry entry; a different local variable name needs one `local:` mapping in `harmonisation/canonical.yaml` (unlisted sites use the canonical name).
+Re-run `python data/generate.py` to re-split the synthetic cohort for the new site count. A new API style is one adapter class implementing the five primitives plus a registry entry; a different local variable name is one `local:` line in [`harmonisation/canonical.yaml`](harmonisation/canonical.yaml) (unlisted sites use the canonical name).
 
-The intended final-demo topology is one client on Gefion, one on NextCloud, and the server on Brev or AWS: set `server.host` to the server FQDN, onboard each site, and ship the kits. This has not been run on remote hosts.
-
+Intended final topology: one client on Gefion, one on NextCloud, server on Brev or AWS — [docs/cloud_demo.md](docs/cloud_demo.md).
 </details>
 
-### Real-world TREs
+## Five Safes
 
-#### HUNT Cloud
+| Safe | Mechanism |
+|---|---|
+| **Projects** | `project_id` must be in [`projects.yaml`](projects.yaml); otherwise nothing is computed and the refusal is audited |
+| **People** | provisioned FLARE identities — every client and admin holds an mTLS certificate signed by the project CA |
+| **Settings** | TRE containers read-only, data mounted `:ro`, internal-only network; only the FLARE client dials out — `scripts/up.sh` asserts a TRE cannot reach the internet |
+| **Data** | canonical variables only; adapters never see rows, and each mock API refuses row-level requests on its own |
+| **Outputs** | two layers — site filter ([`adapters/safe_output.py`](adapters/safe_output.py)) and server check ([`server/disclosure_check.py`](server/disclosure_check.py)); flagged results wait in [`server/overseer_queue.py`](server/overseer_queue.py) for a logged human decision |
 
-<details>
+## Repository map
 
-Network opening request forms containing the IP:port address of the server should be sent to HUNT Cloud support by the data space leader (https://docs.hdc.ntnu.no/administer-science/service-desk/lab-orders#network-opening). 
-The server must be reachable from the HUNT Cloud network, and the HUNT Cloud TRE must be able to reach the server.
-The server host must allow out/inbound connections to HUNT Cloud on the corresponding port (TLS, 129.241.176.121:8002), configurable e.g., on AWS. 
-Client kits and dependencies must be installed on the HUNT Cloud, e.g.:
-
-```sh
-conda create -n heimdall python=3.12
-conda activate heimdall
-pip install nvflare==2.9.0
-
-# fetch client kit files
-gdown https://drive.google.com/uc?id=whatever
-unzip site-1.zip
-cd site-1/startup
-
-# check the connection to the server using credentials
-openssl s_client -connect 16.170.143.132:8002 -servername 16.170.143.132 -CAfile rootCA.pem -cert client.crt -key client.key -alpn h2
-
-# modiy /etc/hosts file on client site (if needed)
-grep -q "server1" /etc/hosts || echo "16.170.143.132 server1" | sudo tee -a /etc/hosts;
-
-# change permissions and start the client
-chmod +x *.sh
-./startup/sub_start.sh --once
-```
-
-</details>
-
-## Technical reference
-
-See the [documentation index](docs/README.md) for reference material, planning history, architecture proposals, and scaling evidence.
-
-<details>
-<summary>Architecture components</summary>
-
-1. **Request** — researcher submits a JSON analysis spec using canonical variable names; the orchestrator resolves them to local columns through the harmonisation map.
-2. **Dispatch** — the FLARE server sits outside every TRE. TREs dial out over gRPC/TLS, so secure environments expose no inbound ports.
-3. **Local execution** — each TRE runs a FLARE client with an adapter to its native REST, DataSHIELD-style Python mock, or SQL gateway. Compute happens where data is; record-level data never leaves.
-4. **Safe output** — each site filters results before they leave: aggregates only, small-count suppression (`k = min_cell_size`, default 5).
-5. **Aggregation** — the server combines site results into federated statistics: sums for allele frequency, a Gram matrix or per-round FedAvg parameters for linear regression, per-round gradient/Hessian (Newton-Raphson) for logistic regression; feature selection follows later.
-6. **Disclosure check** — passing results are written to `released.json`; the release decision is recorded in the server release log. Flagged results enter the overseer queue for a human decision.
-
-| Component | Where | What it does |
-|---|---|---|
-| Site list | [`sites.yaml`](sites.yaml) | **The only place sites are listed.** `tre_id`, `adapter`, `api_url`, `region`. Compose file and FLARE project are generated from it. |
-| Analysis spec | [`spec/analysis_spec.py`](spec/analysis_spec.py), [`spec/examples/`](spec/examples) | `analysis_type`, canonical `variables`, `filters`, `min_cell_size`, `project_id`, `outcome`. Hashed to key every log. |
-| Harmonisation | [`harmonisation/canonical.yaml`](harmonisation/canonical.yaml), [`docs/variables.md`](docs/variables.md) | canonical variable → local column per TRE (`age` = `alder` / `age_years` / `AGE`). |
-| Mock TREs | [`tres/rest`](tres/rest), [`tres/datashield`](tres/datashield), [`tres/sql`](tres/sql) | Three deliberately different APIs over the same kind of data. Each rejects row-level access on its own. |
-| Adapters | [`adapters/`](adapters) | One class per API style, five primitives (`count`, `describe`, `value_counts`, `gram`, `irls_step`); `run(spec)` is shared. Discovered by name via [`adapters/registry.py`](adapters/registry.py). |
-| Safe Output | [`adapters/safe_output.py`](adapters/safe_output.py) | Runs **inside** the TRE before the FLARE client sees anything: project allow-list, aggregate allow-list, k-suppression, audit log. |
-| FLARE jobs | [`flare/app/`](flare/app) | Executor loads the adapter for its own `tre_id`; controllers broadcast, gather with `min_clients` + `wait_time`, merge. |
-| Server side | [`server/`](server) | Associative merge, N-aware disclosure check, overseer queue + release log. |
-| Ops | [`scripts/`](scripts) | generate, provision, onboard a TRE, start server/client, run a job, verify, scale simulation. |
-</details>
-
-## About the name
-
-Named after the guarded bridge between realms in Norse myth: a single crossing connecting otherwise sealed worlds, where nothing passes without the watchman's approval. It links isolated Nordic TREs so analyses can cross while data does not.
-
-## Roadmap
-
-The original goals are targets and historical intent, not a description of current behaviour. See [docs/roadmap.md](docs/roadmap.md).
-
-## License
-
-Released under the [MIT License](LICENSE).
+| Path | Contents |
+|---|---|
+| [`sites.yaml`](sites.yaml), [`projects.yaml`](projects.yaml), [`harmonisation/canonical.yaml`](harmonisation/canonical.yaml) | sites, approved projects, canonical → local variable map ([dictionary](docs/variables.md)) |
+| [`spec/`](spec) | `AnalysisSpec` and example specs |
+| [`adapters/`](adapters) | one adapter per API style behind a registry; the Safe Output filter; the TRE→server wire contract |
+| [`tres/`](tres) | the three mock TREs and their Dockerfiles |
+| [`flare/app/`](flare/app) | FLARE controllers and executors (allele frequency / statistics, linear and logistic regression) |
+| [`server/`](server) | associative merge, disclosure check, overseer queue, HTTP API and its schemas ([`docs/schemas/`](docs/schemas)) |
+| [`frontend/`](frontend) | Next.js researcher, overseer and audit UI |
+| [`scripts/`](scripts) | generate, provision, onboard, local federation, Docker, cloud bootstrap, verify, scale simulation |
+| [`docs/`](docs/README.md) | results, variable dictionary, demo specs, cloud runbook, roadmap, build plan |
 
 ## Status
 
-Milestones M0–M6 are implemented: three mock TREs behind different APIs, adapters that normalise them, FLARE jobs, server-side aggregation with disclosure control, and scale evidence up to 100 simulated sites.
+Milestones M0–M6 of the [build plan](docs/BUILD_PLAN.md) are implemented; the original goals are kept as a [roadmap](docs/roadmap.md).
 
 | Component | State |
 | --- | --- |
-| Mock TREs — `tres/rest`, `tres/datashield`, `tres/sql` | implemented, covered by tests |
-| Adapters, registry, safe-output filter, audit log | implemented, covered by tests |
-| Analysis spec and Safe Projects allow-list | implemented, covered by tests |
-| FLARE jobs — allele frequency, federated statistics, linear regression (exact and FedAvg), logistic regression (Newton-Raphson/IRLS) | implemented, simulator-tested |
-| Server aggregation, disclosure check, overseer queue | implemented |
-| Allele frequency, federated OLS, and federated logistic regression | verified against `data/ground_truth.json` |
-| Scale evidence — 3, 10, 50 and 100 simulated sites | `docs/scaling.png` |
-| Live (non-simulator) FLARE federation — provisioned server + clients, separate processes, mTLS | verified on one machine via `scripts/local_federation.sh` (see [Results](#results)) |
-| Docker: 7 images, isolated TRE networks, containerised FLARE server + clients | verified (`scripts/up.sh --flare`, jobs from inside `flare-server`, stopped container ⇒ `2/3 sites`) |
-| HTTP API — [`server/api.py`](server/api.py), [`server/analysis_service.py`](server/analysis_service.py), contracts in [`server/schemas.py`](server/schemas.py) | implemented, covered by tests. Serves the UI contract (`/metadata`, `/examples/{name}`, `POST /run`, `/run/{id}`, `/overseer`, `POST /overseer/{hash}/approve|reject`, `/audit`) plus `/health`, `/allele-frequency`, `/linear-regression`, `/logistic-regression` (up to `rounds` ≤ 100 sequential calls per site, since logistic regression has no one-shot exact form); every response has a declared schema (`/docs`, [`docs/schemas/`](docs/schemas)). Applies the server disclosure check and overseer queue, strips per-site contributions |
-| Researcher UI — [`frontend/`](frontend) | Next.js app ([#16](https://github.com/collaborativebioinformatics/Bifrost/pull/16)), **connected**: `cd frontend && npm install && npm run dev` against `SERVER_OUT=server/api_out uvicorn server.api:app --port 8500` (plus `python scripts/dev_tres.py`). Runs an analysis, shows the released result, overseer queue and audit log end to end |
+| Mock TREs, adapters, registry, Safe Output filter, audit log | implemented, tested |
+| Analysis spec, Safe Projects allow-list, typed wire contracts | implemented, tested; JSON Schema + OpenAPI in `docs/schemas/` |
+| FLARE jobs — allele frequency, federated statistics, linear (exact + FedAvg) and logistic (Newton-Raphson) regression | implemented, simulator-tested, verified against ground truth |
+| Server merge, disclosure check, overseer queue | implemented, tested |
+| Real FLARE federation (separate mTLS processes) on one machine | verified — `scripts/local_federation.sh` |
+| Docker — 7 images, isolated TRE networks, containerised server and clients | verified — `scripts/up.sh --flare`, stopped container ⇒ `2/3 sites` |
+| Scale — 3, 10, 50, 100 simulated sites | verified — `docs/scaling.png` |
+| HTTP API — [`server/api.py`](server/api.py) | implemented, tested: `/metadata`, `/examples/{name}`, `POST /run`, `/run/{id}`, `/overseer`, `/overseer/{hash}/approve|reject`, `/audit`, plus `/allele-frequency`, `/linear-regression`, `/logistic-regression` (≤ 100 sequential rounds per site) |
+| Researcher UI — [`frontend/`](frontend) | connected to the API end to end (run, released result, overseer queue, audit log) |
+| Clients on remote hosts (Gefion, NextCloud, AWS server) | scripts ready ([runbook](docs/cloud_demo.md)), not yet run |
 
 ## Team
 
-Built by Team 1 for the NCFH 2026 hackathon.
+Team 1, NCFH 2026 hackathon — Ioannis Christofilogiannis · Gaurang Sharma · Marta Menta Czinkoczky · Udogwu Emiri · Pedro Gabriel Campana · Vitalii Babenko · Melissa Wong · Espen Hagen
 
-- Ioannis Christofilogiannis
-- Gaurang Sharma
-- Marta Menta Czinkoczky
-- Udogwu Emiri
-- Pedro Gabriel Campana
-- Vitalii Babenko
-- Melissa Wong
-- Espen Hagen
+Released under the [MIT License](LICENSE).
