@@ -21,7 +21,14 @@ class OLS(_Strict):
     error: str | None = None  # e.g. singular normal equations
 
 
-class FedAvgRound(_Strict):
+class LogReg(_Strict):
+    outcome: str | None = None
+    coef: dict[str, float] | None = None  # intercept + features, log-odds scale
+
+
+class Round(_Strict):
+    """One FedAvg (fed_linreg) or Newton-Raphson (fed_logreg) round."""
+
     round: int
     sites: int
     max_delta: float
@@ -45,8 +52,9 @@ class MergedVariableStats(_Strict):
     min: float | None = None
     max: float | None = None
     ols: OLS | None = None
+    logreg: LogReg | None = None
     n: int | None = None
-    history: list[FedAvgRound] | None = None
+    history: list[Round] | None = None
 
 
 class Timing(_Strict):
@@ -55,10 +63,12 @@ class Timing(_Strict):
 
 
 class Method(_Strict):
-    mode: Literal["exact", "fedavg"]
+    mode: Literal["exact", "fedavg", "newton_raphson"]
     rounds: int | None = None
-    local_steps: int | None = None
-    lr: float | None = None
+    local_steps: int | None = None  # fedavg
+    lr: float | None = None  # fedavg
+    ridge: float | None = None  # newton_raphson: Hessian damping
+    tol: float | None = None  # newton_raphson: convergence tolerance on max |Δβ|
 
 
 class ReleasedResult(_Strict):
@@ -115,9 +125,10 @@ class AnalysisResponse(_Strict):
 
 
 class RunRequest(_Strict):
-    """POST /run body: an AnalysisSpec plus how to fit a fed_linreg."""
+    """POST /run body: an AnalysisSpec plus how to fit a fed_linreg. A fed_logreg
+    runs Newton-Raphson with the service defaults (25 rounds, tol 1e-8)."""
 
-    analysis_type: Literal["allele_freq", "fed_stats", "fed_linreg"]
+    analysis_type: Literal["allele_freq", "fed_stats", "fed_linreg", "fed_logreg"]
     variables: list[str] = Field(min_length=1)
     filters: dict[str, dict[str, object]] = Field(default_factory=dict)
     min_cell_size: int = Field(default=5, ge=1)

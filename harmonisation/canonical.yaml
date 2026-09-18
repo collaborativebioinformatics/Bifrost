@@ -32,6 +32,11 @@ variables:
     type: continuous
     unit: mmHg
     local: {hunt: systolisk, gefion: sbp_mmhg, brev: SBP}
+  case:
+    description: Disease case status, 0/1 (logistic regression outcome, placeholder)
+    type: binary
+    unit: ""
+    local: {hunt: case_status, gefion: is_case, brev: CASE_STATUS}
   snp_rs001:
     description: Genotype dosage of minor allele at rs001 (0/1/2)
     type: genotype

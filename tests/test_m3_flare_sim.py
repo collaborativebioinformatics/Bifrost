@@ -92,3 +92,23 @@ def test_fed_linreg_fedavg_end_to_end(tres, sites, tmp_path):
     for s in sites:
         lines = (out / "audit" / "audit.jsonl").read_text().splitlines()
         assert sum(1 for l in lines if f'"tre_id": "{s["tre_id"]}"' in l and "fedavg_round=" in l) == 8
+
+
+def test_fed_logreg_newton_end_to_end(tres, sites, tmp_path):
+    """Federated Newton-Raphson (IRLS): grad/Hessian leave each round; converges to the pooled MLE."""
+    from scripts.build_job import build
+
+    job = build(ROOT / "spec" / "examples" / "fed_logreg.json", tmp_path / "job", min_clients=2, wait_time=1,
+                logreg={"rounds": 25, "tol": 1e-8, "ridge": 1e-6})
+    out = tmp_path / "out"
+    _simulate(job, tmp_path / "ws", out, [s["tre_id"] for s in sites])
+    res = json.loads(next(d for d in out.iterdir() if d.is_dir() and d.name != "audit").joinpath("result.json").read_text())
+    gt = json.loads((ROOT / "data" / "ground_truth.json").read_text())
+    assert res["method"]["mode"] == "newton_raphson"
+    coef = res["stats"]["_logreg"]["logreg"]["coef"]
+    assert max(abs(coef[k] - gt["logreg"]["coef"][k]) for k in coef) < 1e-6
+    # per-round audit lines exist at every site
+    rounds = res["method"]["rounds"]
+    for s in sites:
+        lines = (out / "audit" / "audit.jsonl").read_text().splitlines()
+        assert sum(1 for l in lines if f'"tre_id": "{s["tre_id"]}"' in l and "newton_raphson_round" in l) == rounds

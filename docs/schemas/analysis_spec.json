@@ -4,7 +4,8 @@
       "enum": [
         "allele_freq",
         "fed_stats",
-        "fed_linreg"
+        "fed_linreg",
+        "fed_logreg"
       ],
       "title": "Analysis Type",
       "type": "string"

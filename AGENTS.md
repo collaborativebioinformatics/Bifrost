@@ -22,12 +22,12 @@ Implemented:
 | Adapters | `adapters/` behind `adapters/registry.py`; `adapters/safe_output.py` filters + writes `audit/<tre_id>/audit.jsonl` |
 | Analysis spec | `spec/analysis_spec.py`, examples in `spec/examples/`; Safe Projects allow-list in `projects.yaml` |
 | Harmonisation | `harmonisation/canonical.yaml` (unlisted site ⇒ local name = canonical name) |
-| FLARE jobs | `flare/app/` — `controller.py`/`executor.py` (allele_freq, fed_stats, exact fed_linreg), `linreg_controller.py`/`linreg_executor.py`/`linreg.py` (FedAvg fed_linreg). `scripts/build_job.py` assembles a job folder; `flare/jobs/` is generated and gitignored |
+| FLARE jobs | `flare/app/` — `controller.py`/`executor.py` (allele_freq, fed_stats, exact fed_linreg), `linreg_controller.py`/`linreg_executor.py`/`linreg.py` (FedAvg fed_linreg), `logreg_controller.py`/`logreg_executor.py`/`logreg.py` (Newton-Raphson fed_logreg). `scripts/build_job.py` assembles a job folder; `flare/jobs/` is generated and gitignored |
 | Server side | `server/aggregate.py` (associative merge), `server/disclosure_check.py`, `server/overseer_queue.py` (CLI); outputs under `server/out/` (gitignored, `SERVER_OUT` env) |
 | Wire contracts | `adapters/base.py` (`AggregateResult`, `VariableStats`, `Gram` — the TRE→server payload, strict Pydantic), `server/schemas.py` (`MergedResult`, `ReleasedResult`, HTTP API models); JSON Schema + OpenAPI in `docs/schemas/` via `scripts/export_schemas.py` (a test fails when stale) |
-| HTTP API + UI | `server/api.py` serves the researcher UI contract (`/metadata`, `/examples/{name}`, `POST /run`, `/run/{id}`, `/overseer`, `/overseer/{hash}/{approve,reject}`, `/audit`) and the convenience endpoints; `frontend/` (Next.js) is wired to it — run API on :8500, UI on :3000 |
+| HTTP API + UI | `server/api.py` serves the researcher UI contract (`/metadata`, `/examples/{name}`, `POST /run`, `/run/{id}`, `/overseer`, `/overseer/{hash}/{approve,reject}`, `/audit`) and the convenience endpoints (`/allele-frequency`, `/linear-regression`, `/logistic-regression`); `frontend/` (Next.js) is wired to it — run API on :8500, UI on :3000 |
 | Ops scripts | `scripts/local_federation.sh` (real FLARE, no Docker), `scripts/provision.sh`, `scripts/onboard_tre.sh`, `scripts/start_server.sh`, `scripts/start_client.sh`, `scripts/run_job.py` (`--mode simulator|prod`, `--fedavg`), `scripts/run_local.py`, `scripts/verify.py`, `scripts/scale_sim.py` → `docs/scaling.png` |
-| Tests | `tests/` — 31 fast + 3 FLARE-simulator (`-m slow`) |
+| Tests | `tests/` — 111 fast + 4 FLARE-simulator (`-m slow`) |
 
 A real (non-simulator) FLARE federation runs two verified ways: `scripts/local_federation.sh` with separate processes over mTLS, and Docker via `scripts/provision.sh && scripts/up.sh --flare`; both support the example specs, overseer flow, and partial-site coverage. The Next.js UI is implemented in `frontend/`; the Python API service exposing its documented contract remains separate. Not yet run: clients on remote hosts (Gefion / NextCloud).
 
@@ -45,8 +45,8 @@ Confirm a path, command, module, or function exists before referencing it — th
 
 Checks that exist and were confirmed working on 2026-09-17:
 
-- `python -m pytest -q -m "not slow"` — 31 passed, ~1 s, no network.
-- `python -m pytest -q -m slow` — 3 passed, ~50 s; starts the TREs as local processes and runs FLARE simulator jobs (allele_freq, straggler, FedAvg linreg).
+- `python -m pytest -q -m "not slow"` — 111 passed, ~4 s, no network.
+- `python -m pytest -q -m slow` — 4 passed, ~75 s; starts the TREs as local processes and runs FLARE simulator jobs (allele_freq, straggler, FedAvg linreg, Newton-Raphson logreg).
 - `scripts/dev_tres.py` + `scripts/run_job.sh spec/examples/<spec>.json` — simulator end-to-end with `scripts/verify.py` against ground truth.
 - `scripts/local_federation.sh up && scripts/local_federation.sh job spec/examples/allele_freq.json` — real FLARE server + 3 clients on localhost; ~12 s per job.
 - `scripts/scale_sim.py` — N ∈ {3, 10, 50, 100} clients, exact at every N; ~2 min.

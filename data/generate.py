@@ -27,6 +27,12 @@ COVARIATES = ["age", "sex", "bmi", "ldl"]
 # Causal SNPs for the regression outcome (effect per minor allele, mmHg)
 CAUSAL = {"snp_rs001": 2.5, "snp_rs007": -1.5, "snp_rs013": 1.0}
 
+# Binary outcome for logistic regression (fed_logreg). Same covariates, its own
+# (smaller) causal SNPs so the two outcomes aren't just linear transforms of one another.
+LOGREG_OUTCOME = "case"
+LOGREG_CAUSAL = {"snp_rs001": 1.0, "snp_rs007": -0.8}
+LOGREG_BETA = {"intercept": -4.5, "age": 0.02, "sex": 0.5, "bmi": 0.05, "ldl": 0.3, **LOGREG_CAUSAL}
+
 
 def generate(n: int, seed: int, sites: list[dict]) -> tuple[pd.DataFrame, dict]:
     """Pooled cohort with a `site` column. Non-IID by design:
@@ -61,7 +67,25 @@ def generate(n: int, seed: int, sites: list[dict]) -> tuple[pd.DataFrame, dict]:
     beta = {"intercept": 90.0, "age": 0.5, "sex": 4.0, "bmi": 0.8, "ldl": 1.2, **CAUSAL}
     y = beta["intercept"] + sum(beta[c] * df[c] for c in COVARIATES + list(CAUSAL)) + rng.normal(0, 10, n)
     df[OUTCOME] = y.round(1)
-    return df, {"maf_true": maf, "maf_site_drift": drift, "beta_true": beta}
+
+    logit = LOGREG_BETA["intercept"] + sum(LOGREG_BETA[c] * df[c] for c in COVARIATES + list(LOGREG_CAUSAL))
+    prob = 1.0 / (1.0 + np.exp(-logit))
+    df[LOGREG_OUTCOME] = rng.binomial(1, prob)
+
+    return df, {"maf_true": maf, "maf_site_drift": drift, "beta_true": beta, "logreg_beta_true": LOGREG_BETA}
+
+
+def fit_logreg(X: np.ndarray, y: np.ndarray, iters: int = 25, ridge: float = 1e-8) -> np.ndarray:
+    """Plain Newton-Raphson (IRLS) fit of the pooled data; used only to compute
+    ground truth for verify.py, independent of the federated implementation."""
+    beta = np.zeros(X.shape[1])
+    for _ in range(iters):
+        p = 1.0 / (1.0 + np.exp(-(X @ beta)))
+        w = np.clip(p * (1 - p), 1e-6, None)
+        grad = X.T @ (y - p)
+        hess = X.T @ (X * w[:, None]) + ridge * np.eye(X.shape[1])
+        beta = beta + np.linalg.solve(hess, grad)
+    return beta
 
 
 def split(df: pd.DataFrame, sites: list[dict]) -> dict[str, pd.DataFrame]:
@@ -75,6 +99,11 @@ def ground_truth(df: pd.DataFrame, parts: dict[str, pd.DataFrame], truth: dict) 
     X = np.column_stack([np.ones(len(df))] + [df[c].to_numpy(float) for c in COVARIATES + list(CAUSAL)])
     coef, *_ = np.linalg.lstsq(X, df[OUTCOME].to_numpy(float), rcond=None)
     names = ["intercept"] + COVARIATES + list(CAUSAL)
+
+    Xl = np.column_stack([np.ones(len(df))] + [df[c].to_numpy(float) for c in COVARIATES + list(LOGREG_CAUSAL)])
+    logreg_names = ["intercept"] + COVARIATES + list(LOGREG_CAUSAL)
+    logreg_coef = fit_logreg(Xl, df[LOGREG_OUTCOME].to_numpy(float))
+
     return {
         "n_total": int(len(df)),
         "n_per_site": {k: int(len(v)) for k, v in parts.items()},
@@ -84,7 +113,11 @@ def ground_truth(df: pd.DataFrame, parts: dict[str, pd.DataFrame], truth: dict) 
         "maf_site_drift": truth["maf_site_drift"],
         "site_allele_freq": {k: {s: float(v[s].sum() / (2 * len(v))) for s in snps} for k, v in parts.items()},
         "ols": {"outcome": OUTCOME, "features": names[1:], "coef": dict(zip(names, map(float, coef)))},
+        "logreg": {"outcome": LOGREG_OUTCOME, "features": logreg_names[1:],
+                   "coef": dict(zip(logreg_names, map(float, logreg_coef))),
+                   "case_rate": float(df[LOGREG_OUTCOME].mean())},
         "beta_true": truth["beta_true"],
+        "logreg_beta_true": truth["logreg_beta_true"],
         "mean": {c: float(df[c].mean()) for c in COVARIATES + [OUTCOME]},
     }
 
