@@ -6,6 +6,7 @@ import {
   FlaskConical, GitBranch, Info, LockKeyhole, Play, RefreshCw, ShieldCheck,
   Table2, Waypoints, X,
 } from 'lucide-react'
+import { ResultView } from './result-view'
 
 const API_BASE = '/api'
 const staticMetadata = {
@@ -28,7 +29,7 @@ const staticMetadata = {
     'allele_freq',
     'fed_stats',
     'fed_linreg',
-    'logistic_regression',
+    'fed_logreg',
   ],
 }
 
@@ -42,7 +43,7 @@ async function api(path, options) {
   return body
 }
 
-function Stat({ label, value, detail, accent = '' }) {
+function LegacyStat({ label, value, detail, accent = '' }) {
   return (
     <div className={`stat-card ${accent}`}>
       <span>{label}</span>
@@ -52,7 +53,9 @@ function Stat({ label, value, detail, accent = '' }) {
   )
 }
 
-function ResultView({ result }) {
+const Stat = LegacyStat
+
+function LegacyResultView({ result }) {
   const stats = result?.result || result || {}
   const decision = result?.decision || result?.check?.decision || (['complete', 'completed'].includes(result?.status) ? 'RESULT AVAILABLE' : 'RUNNING')
   const released = ['OK', 'RELEASED', 'APPROVED', 'RESULT AVAILABLE'].includes(decision)
@@ -155,12 +158,12 @@ export default function Home() {
   const phenotypeVariables = useMemo(() => metadata.variables.filter((variable) => variable.type !== 'genotype'), [metadata])
   
   const isLinear = analysisType === 'fed_linreg'
-  const isLogistic = analysisType === 'logistic_regression'
+  const isLogistic = analysisType === 'fed_logreg'
   const isRegression = isLinear || isLogistic
 
   useEffect(() => {
     if (
-      analysisType === 'logistic_regression' &&
+      analysisType === 'fed_logreg' &&
       !binaryVariables.some((variable) => variable.name === outcome)
     ) {
       setOutcome(binaryVariables[0]?.name || '')
@@ -173,7 +176,7 @@ export default function Home() {
         setMetadata({
           ...staticMetadata,
           ...body,
-          sites: (body.sites || []).map((site) => ({ ...site, online: site.online ?? null })),
+          sites: (body.sites || []).map((site) => ({ ...site, online: site.online ?? site.status === 'ok' })),
         })
         setProjectId(body.projects?.[0]?.id || 'ncfh-2026-demo')
         setMetadataError(false)
@@ -374,7 +377,7 @@ export default function Home() {
                   <button
                     type="button"
                     className={isLogistic ? 'selected' : ''}
-                    onClick={() => setAnalysisType('logistic_regression')}
+                    onClick={() => setAnalysisType('fed_logreg')}
                   >
                     <BarChart3 size={18} />
                     <span>
