@@ -75,4 +75,5 @@ class SqlAdapter(HttpAdapter):
         # Nonlinear per-row transform parameterised by beta -- not expressible as one
         # aggregating SELECT, so this goes through the gateway's dedicated /irls endpoint
         # instead of the generic SQL passthrough (same trust boundary as /schema).
-        return self._post("/irls", {"outcome": outcome_col, "features": feature_cols, "beta": beta, "filters": filters})
+        r = self._post("/irls", {"outcome": outcome_col, "features": feature_cols, "beta": beta, "filters": filters})
+        return {"n": r["n"], "grad": r["grad"], "hess": r["hess"]}

@@ -35,7 +35,12 @@ class RegressionRequest(BaseModel):
     min_cell_size: int = Field(default=5, ge=5)
 
 
-def _execute(**kwargs) -> JSONResponse:
+class LogisticRegressionRequest(RegressionRequest):
+    rounds: int = Field(default=25, ge=1, le=100)
+    tol: float = Field(default=1e-8, gt=0)
+
+
+def _execute(*, analyse_kwargs: dict | None = None, **kwargs) -> JSONResponse:
     try:
         spec = AnalysisSpec(**kwargs)
         canonical = load_canonical()
@@ -46,6 +51,8 @@ def _execute(**kwargs) -> JSONResponse:
             raise ValueError("Features must be unique")
         if spec.analysis_type == "allele_freq" and canonical[spec.variables[0]]["type"] != "genotype":
             raise ValueError("Variant must be a genotype variable")
+        if spec.analysis_type == "fed_logreg" and canonical[spec.outcome]["type"] != "binary":
+            raise ValueError("Logistic regression target must be a binary variable")
         for conditions in spec.filters.values():
             for op, value in conditions.items():
                 if op not in {"==", "!=", ">", ">=", "<", "<=", "in"}:
@@ -55,7 +62,10 @@ def _execute(**kwargs) -> JSONResponse:
     except (ValidationError, ValueError) as exc:
         raise HTTPException(422, str(exc)) from exc
     try:
-        status, body = analysis_service.analyse(spec)
+        if spec.analysis_type == "fed_logreg":
+            status, body = analysis_service.analyse_logreg(spec, **(analyse_kwargs or {}))
+        else:
+            status, body = analysis_service.analyse(spec)
         return JSONResponse(body, status_code=status)
     except Exception:
         # Fail closed if merge, configuration, disclosure or audit persistence fails.
@@ -82,3 +92,14 @@ def linear_regression(request: RegressionRequest):
     return _execute(analysis_type="fed_linreg", variables=request.features,
                     outcome=request.target, project_id=request.project_id,
                     filters=request.filters, min_cell_size=request.min_cell_size)
+
+
+@app.post("/logistic-regression")
+def logistic_regression(request: LogisticRegressionRequest):
+    """Federated logistic regression (Newton-Raphson/IRLS). Unlike /linear-regression,
+    this makes `rounds` sequential round-trips to every site (bounded, see
+    LogisticRegressionRequest), so it's slower and each call is not one-shot."""
+    return _execute(analysis_type="fed_logreg", variables=request.features,
+                    outcome=request.target, project_id=request.project_id,
+                    filters=request.filters, min_cell_size=request.min_cell_size,
+                    analyse_kwargs={"rounds": request.rounds, "tol": request.tol})
