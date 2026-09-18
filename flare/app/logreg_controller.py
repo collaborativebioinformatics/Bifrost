@@ -75,7 +75,7 @@ class FedLogregController(Controller):
                 return
             miss = [s for s in sites if s not in replies]
             if miss:
-                missing_rounds[r] = miss
+                missing_rounds[str(r)] = miss  # JSON object keys, as the result contract requires
             if len(replies) < self.min_clients:
                 self.log_error(fl_ctx, f"round {r}: only {len(replies)} updates; stopping early")
                 break
@@ -99,7 +99,7 @@ class FedLogregController(Controller):
             "sites_expected": expected, "sites_reported": sites, "sites_missing": [s for s in expected if s not in sites],
             "coverage": f"{len(sites)}/{len(expected)} sites", "n": sum(n_per_site.values()), "n_per_site": n_per_site,
             "rejected_per_site": {}, "spec_hash": self.spec.spec_hash(), "sites_missing_rounds": missing_rounds,
-            "method": {"mode": "newton_raphson", "rounds": len(history), "ridge": self.ridge},
+            "method": {"mode": "newton_raphson", "rounds": len(history), "ridge": self.ridge, "tol": self.tol},
             "stats": {"_logreg": {"logreg": {"outcome": self.spec.outcome,
                                               "coef": dict(zip(["intercept", *features], beta))},
                                   "n": sum(n_per_site.values()), "history": history}},

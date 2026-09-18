@@ -27,36 +27,38 @@
       "title": "AlleleCounts",
       "type": "object"
     },
-    "FedAvgRound": {
+    "LogReg": {
       "additionalProperties": false,
       "properties": {
-        "round": {
-          "title": "Round",
-          "type": "integer"
-        },
-        "sites": {
-          "title": "Sites",
-          "type": "integer"
-        },
-        "max_delta": {
-          "title": "Max Delta",
-          "type": "number"
+        "outcome": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Outcome"
         },
         "coef": {
-          "additionalProperties": {
-            "type": "number"
-          },
-          "title": "Coef",
-          "type": "object"
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Coef"
         }
       },
-      "required": [
-        "round",
-        "sites",
-        "max_delta",
-        "coef"
-      ],
-      "title": "FedAvgRound",
+      "title": "LogReg",
       "type": "object"
     },
     "MergedVariableStats": {
@@ -226,6 +228,17 @@
           ],
           "default": null
         },
+        "logreg": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LogReg"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "n": {
           "anyOf": [
             {
@@ -242,7 +255,7 @@
           "anyOf": [
             {
               "items": {
-                "$ref": "#/$defs/FedAvgRound"
+                "$ref": "#/$defs/Round"
               },
               "type": "array"
             },
@@ -263,7 +276,8 @@
         "mode": {
           "enum": [
             "exact",
-            "fedavg"
+            "fedavg",
+            "newton_raphson"
           ],
           "title": "Mode",
           "type": "string"
@@ -303,6 +317,30 @@
           ],
           "default": null,
           "title": "Lr"
+        },
+        "ridge": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ridge"
+        },
+        "tol": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tol"
         }
       },
       "required": [
@@ -355,6 +393,39 @@
         }
       },
       "title": "OLS",
+      "type": "object"
+    },
+    "Round": {
+      "additionalProperties": false,
+      "description": "One FedAvg (fed_linreg) or Newton-Raphson (fed_logreg) round.",
+      "properties": {
+        "round": {
+          "title": "Round",
+          "type": "integer"
+        },
+        "sites": {
+          "title": "Sites",
+          "type": "integer"
+        },
+        "max_delta": {
+          "title": "Max Delta",
+          "type": "number"
+        },
+        "coef": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Coef",
+          "type": "object"
+        }
+      },
+      "required": [
+        "round",
+        "sites",
+        "max_delta",
+        "coef"
+      ],
+      "title": "Round",
       "type": "object"
     },
     "Timing": {

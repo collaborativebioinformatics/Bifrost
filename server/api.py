@@ -59,6 +59,13 @@ class RegressionRequest(BaseModel):
     min_cell_size: int = Field(default=5, ge=5)
 
 
+class LogisticRegressionRequest(RegressionRequest):
+    """POST /logistic-regression: a RegressionRequest plus the Newton-Raphson budget."""
+
+    rounds: int = Field(default=25, ge=1, le=100)
+    tol: float = Field(default=1e-8, gt=0)
+
+
 def _spec(**kwargs) -> AnalysisSpec:
     """Build and validate an AnalysisSpec against the harmonisation map. 422 on any problem."""
     try:
@@ -71,6 +78,8 @@ def _spec(**kwargs) -> AnalysisSpec:
             raise ValueError("Features must be unique")
         if spec.analysis_type == "allele_freq" and any(canonical[v]["type"] != "genotype" for v in spec.variables):
             raise ValueError("Variant must be a genotype variable")
+        if spec.analysis_type == "fed_logreg" and canonical[spec.outcome]["type"] != "binary":
+            raise ValueError("Logistic regression target must be a binary variable")
         for conditions in spec.filters.values():
             for op, value in conditions.items():
                 if op not in FILTER_OPS:
@@ -82,9 +91,16 @@ def _spec(**kwargs) -> AnalysisSpec:
     return spec
 
 
-def _execute(spec: AnalysisSpec, fedavg_rounds: int = 0) -> JSONResponse:
+def _analyse(spec: AnalysisSpec, fedavg_rounds: int = 0, logreg: dict | None = None) -> tuple[int, dict]:
+    """One dispatcher for the synchronous endpoints and the background /run path."""
+    if spec.analysis_type == "fed_logreg":
+        return analysis_service.analyse_logreg(spec, **(logreg or {}))
+    return analysis_service.analyse(spec, fedavg_rounds)
+
+
+def _execute(spec: AnalysisSpec, fedavg_rounds: int = 0, logreg: dict | None = None) -> JSONResponse:
     try:
-        status, body = analysis_service.analyse(spec, fedavg_rounds)
+        status, body = _analyse(spec, fedavg_rounds, logreg)
         return JSONResponse(body, status_code=status)
     except Exception:
         # Fail closed if merge, configuration, disclosure or audit persistence fails.
@@ -114,6 +130,17 @@ def linear_regression(request: RegressionRequest):
     return _execute(_spec(analysis_type="fed_linreg", variables=request.features, outcome=request.target,
                           project_id=request.project_id, filters=request.filters,
                           min_cell_size=request.min_cell_size))
+
+
+@app.post("/logistic-regression", response_model=AnalysisResponse, response_model_exclude_none=True,
+          responses={503: {"model": AnalysisResponse}})
+def logistic_regression(request: LogisticRegressionRequest):
+    """Federated logistic regression (Newton-Raphson/IRLS). Unlike /linear-regression this
+    makes up to `rounds` sequential round-trips to every site, so it is not one call."""
+    return _execute(_spec(analysis_type="fed_logreg", variables=request.features, outcome=request.target,
+                          project_id=request.project_id, filters=request.filters,
+                          min_cell_size=request.min_cell_size),
+                    logreg={"rounds": request.rounds, "tol": request.tol})
 
 
 # ---- researcher UI contract ----------------------------------------------------------
@@ -150,7 +177,7 @@ def metadata(probe: bool = Query(default=True, description="probe each TRE's /he
         projects=[{"id": pid, "description": (p or {}).get("description") or ""} for pid, p in projects.items()],
         examples=sorted(p.name for p in EXAMPLES_DIR.glob("*.json")),
         sites=[{"tre_id": s["tre_id"], "adapter": s["adapter"], "region": s["region"], "online": status[s["tre_id"]]} for s in sites],
-        analysis_types=["allele_freq", "fed_stats", "fed_linreg"],
+        analysis_types=["allele_freq", "fed_stats", "fed_linreg", "fed_logreg"],
     )
 
 
@@ -169,7 +196,7 @@ def _run_in_background(run_id: str, spec: AnalysisSpec, fedavg_rounds: int) -> N
     with _RUNS_LOCK:
         _RUNS[run_id]["status"] = "running"
     try:
-        _, body = analysis_service.analyse(spec, fedavg_rounds)
+        _, body = _analyse(spec, fedavg_rounds)
     except Exception:
         LOG.exception("Run %s failed", run_id)
         body = {"status": "failed", "error": "analysis_failed", "spec_hash": spec.spec_hash()}

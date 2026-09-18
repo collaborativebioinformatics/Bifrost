@@ -127,3 +127,62 @@ def test_controller_does_not_record_a_zero_round_fit(monkeypatch, tmp_path, site
     monkeypatch.setattr(ctl, "_round", fake_round)
     ctl.control_flow(Signal(), FLContext())
     assert recorded == []
+
+
+def test_controller_records_through_the_result_contract(monkeypatch, tmp_path, sites, adapters):
+    """A site that misses one round is recorded under a string round key, and the
+    run written by overseer_queue.record satisfies MergedResult and matches the
+    pooled MLE once every site is back."""
+    from nvflare.apis.fl_context import FLContext
+    from nvflare.apis.shareable import Shareable
+    from nvflare.apis.signal import Signal
+
+    from flare.app.logreg_controller import FedLogregController
+    from server import overseer_queue
+    from server.schemas import MergedResult
+
+    monkeypatch.setenv("SERVER_OUT", str(tmp_path))
+    tids = [s["tre_id"] for s in sites]
+    calls = {"n": 0}
+
+    def reply(**fields):
+        shareable = Shareable()
+        shareable.update(fields)
+        return shareable
+
+    def fake_round(name, data, fl_ctx, abort_signal, targets=None):
+        if name == "logreg_init":
+            return {tid: reply(n=GT["n_per_site"][tid]) for tid in tids}
+        calls["n"] += 1
+        answering = tids[:-1] if calls["n"] == 1 else tids  # the last site misses round 1 only
+        return {tid: reply(step=_step(adapters[tid], data["beta"])) for tid in answering}
+
+    ctl = FedLogregController(SPEC.model_dump(), rounds=25, min_clients=2)
+    monkeypatch.setattr(ctl, "_round", fake_round)
+    ctl.control_flow(Signal(), FLContext())
+    res = json.loads((overseer_queue.out_dir() / SPEC.spec_hash() / "result.json").read_text())
+    MergedResult.model_validate(res)
+    assert res["sites_missing_rounds"] == {"1": [tids[-1]]}
+    assert res["method"]["mode"] == "newton_raphson" and res["method"]["rounds"] > 1
+    assert np.max(np.abs(np.array([res["stats"]["_logreg"]["logreg"]["coef"][k] for k in ("intercept", *FEATURES)]) - _truth())) < 1e-6
+
+
+def test_result_contract_accepts_logreg_and_still_rejects_unknown_fields():
+    from pydantic import ValidationError
+
+    from server.schemas import MergedResult, Method
+
+    fit = {"outcome": "case", "coef": {"intercept": -4.4, "age": 0.02}}
+    merged = {"spec_hash": "abc", "coverage": "3/3 sites", "sites_expected": ["a", "b", "c"],
+              "sites_reported": ["a", "b", "c"], "sites_missing": [], "n": 300, "n_per_site": {"a": 100, "b": 100, "c": 100},
+              "stats": {"_logreg": {"logreg": fit, "n": 300,
+                                    "history": [{"round": 1, "sites": 3, "max_delta": 0.5, "coef": fit["coef"]}]}},
+              "method": {"mode": "newton_raphson", "rounds": 1, "ridge": 1e-6, "tol": 1e-8},
+              "sites_missing_rounds": {"1": ["c"]}}
+    MergedResult.model_validate(merged)
+    with pytest.raises(ValidationError):
+        MergedResult.model_validate({**merged, "stats": {"_logreg": {"logreg": {**fit, "bogus": 1}}}})
+    with pytest.raises(ValidationError):
+        MergedResult.model_validate({**merged, "sites_missing_rounds": {1: ["c"]}})
+    with pytest.raises(ValidationError):
+        Method(mode="newton_raphson", bogus=1)

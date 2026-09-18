@@ -272,7 +272,7 @@ def analyse_logreg(spec: AnalysisSpec, rounds: int = 25, tol: float = 1e-8, ridg
         merged["stats"] = {"_logreg": {"logreg": {"outcome": spec.outcome,
                                                    "coef": dict(zip(["intercept", *spec.variables], beta))},
                                        "n": merged["n"], "history": history}}
-    merged["method"] = {"mode": "newton_raphson", "rounds": len(history), "ridge": ridge}
+    merged["method"] = {"mode": "newton_raphson", "rounds": len(history), "ridge": ridge, "tol": tol}
     merged["sites_failed"] = failed
 
     with _RELEASE_LOCK:
