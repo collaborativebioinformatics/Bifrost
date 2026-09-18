@@ -19,16 +19,22 @@ flare/kits/
 .local_fed/
 .next
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> b05bac27146e3cacfc9e8a99a06e67a2150ddf78
 *.csv
 *.bed
 *.bim
 *.fam
 *_geno.*
 site*_nordik_sim.*
+<<<<<<< HEAD
 .remote/
 server/api_out/
 frontend/.next/
 frontend/AGENTS.md
 frontend/CLAUDE.md
 >>>>>>> 1589cd5ef94e40e0c3866ba2b7a45973a101a81c
+=======
+>>>>>>> b05bac27146e3cacfc9e8a99a06e67a2150ddf78
