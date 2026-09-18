@@ -90,8 +90,8 @@ the table is outside the supported range. Two checks cover that:
   the Gram matrices directly from `data/sites/*.csv` without the adapters, and was
   identical to all digits shown. The figures do not depend on the interpreter or on the
   adapter layer.
-- CI runs the fast suite on 3.11 and 3.12 ([run 35318612599](https://github.com/collaborativebioinformatics/Bifrost/actions/runs/35318612599)):
-  79 passed, 3 deselected on both. The tests here pass on supported interpreters.
+- CI runs the fast suite on 3.11 and 3.12 ([run 35319126214](https://github.com/collaborativebioinformatics/Bifrost/actions/runs/35319126214)):
+  80 passed, 3 deselected on both. The tests here pass on supported interpreters.
 
 CI establishes that the assertions hold on supported versions, within the tolerances above.
 It does not establish that the exact digits in the table reproduce across environments.
