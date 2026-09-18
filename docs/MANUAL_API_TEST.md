@@ -146,24 +146,34 @@ The governance endpoints currently have no authentication layer. Keep this proce
 
 ## What this validates: direct adapter communication
 
+
 ```text
-Researcher / Swagger / curl
-             |
+
+         Researcher 
+             |                ← Swagger / curl
          Common API
              |
       analysis_service
              |
         TRE adapters
         /    |    \
-     HUNT Gefion Brev       (HTTP mock TRE services)
-       |     |     |
-       local synthetic CSVs
-             |
-     aggregate responses
-             |
-  server disclosure + records
-             |
+  +------+ +------+ +------+
+  | HUNT | |Gefion| | Brev |   ← TRE boundaries
+  | API  | | API  | | API  |
+  |  ↓   | |  ↓   | |  ↓   |
+  |local | |local | |local |
+  | data | | data | | data |
+  +--|---+ +--|---+ +--|---+
+     |        |        |       ← aggregate responses
+     +--------+--------+       
+              |
+      combine aggregates
+              |
+   server disclosure + records
+              |
     releasable API response
+              |
+          Researcher
 ```
 
 The actual allele-frequency/linear-regression path is `server/api.py` → `_execute()` → `_analyse()` → `analysis_service.analyse()` → `_run_site()` → `registry.load(tre_id).run(spec)`. Each adapter calls its native mock HTTP API. The service validates successful `AggregateResult`s, calls `server.aggregate.combine()`, then the existing disclosure check and overseer recording mechanism before formatting the external response. Failures are collected independently.
