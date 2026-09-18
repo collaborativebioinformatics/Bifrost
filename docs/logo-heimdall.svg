@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="840" viewBox="0 0 1280 840" role="img" aria-labelledby="title desc">
+  <title id="title">Heimdall</title>
+  <desc id="desc">A luminous teal-to-violet bridge arc with a small watchtower standing on the deck at its centre, three lit sites beneath, above a widely spaced Heimdall wordmark. Transparent background, for dark backgrounds.</desc>
+  <defs>
+    <linearGradient id="spectrum" x1="200" y1="462" x2="1080" y2="200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#12B5A0"/>
+      <stop offset=".38" stop-color="#4BE3CF"/>
+      <stop offset=".66" stop-color="#A9F2F0"/>
+      <stop offset=".86" stop-color="#9CC4F5"/>
+      <stop offset="1" stop-color="#A9A4FF"/>
+    </linearGradient>
+    <linearGradient id="inner" x1="270" y1="462" x2="1010" y2="240" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0FA394"/>
+      <stop offset=".62" stop-color="#3DD1C1"/>
+      <stop offset="1" stop-color="#86AEEC"/>
+    </linearGradient>
+    <linearGradient id="deck" x1="110" y1="0" x2="1170" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2BC4AE"/>
+      <stop offset=".5" stop-color="#E6FFF8"/>
+      <stop offset="1" stop-color="#8FB8F0"/>
+    </linearGradient>
+    <linearGradient id="word" x1="180" y1="0" x2="1100" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#12B5A0"/>
+      <stop offset=".45" stop-color="#4BE3CF"/>
+      <stop offset=".75" stop-color="#9CC4F5"/>
+      <stop offset="1" stop-color="#A9A4FF"/>
+    </linearGradient>
+    <linearGradient id="rule" x1="540" y1="0" x2="740" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#12B5A0"/>
+      <stop offset=".5" stop-color="#4BE3CF"/>
+      <stop offset="1" stop-color="#A9A4FF"/>
+    </linearGradient>
+    <filter id="glow" x="-15%" y="-40%" width="130%" height="180%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="22"/>
+    </filter>
+    <filter id="glowSm" x="-150%" y="-150%" width="400%" height="400%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+    <filter id="glowText" x="-10%" y="-40%" width="120%" height="180%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+  </defs>
+
+  <!-- Soft light bleed behind the span, the deck and the beacon -->
+  <g fill="none" stroke-linecap="round" filter="url(#glow)" opacity=".6">
+    <path d="M 200,462 C 252,50 1028,50 1080,462" stroke="url(#spectrum)" stroke-width="54"/>
+    <path d="M110 470H1170" stroke="url(#deck)" stroke-width="26"/>
+  </g>
+
+  <!-- The bridge -->
+  <g fill="none" stroke-linecap="round">
+    <path d="M 270,462 C 318,140 962,140 1010,462" stroke="url(#inner)" stroke-width="12"/>
+    <path d="M 200,462 C 252,50 1028,50 1080,462" stroke="url(#spectrum)" stroke-width="38"/>
+    <path d="M110 470H1170" stroke="url(#deck)" stroke-width="18"/>
+    <path d="M200 470V532 M1080 470V532" stroke="url(#deck)" stroke-width="20"/>
+  </g>
+
+  <!-- The watchtower: stands on the deck, a lamp at the top, no face -->
+  <circle cx="640" cy="318" r="30" fill="#4BE3CF" fill-opacity=".35" filter="url(#glowSm)"/>
+  <path d="M622 470 L628 352 H652 L658 470 Z" fill="url(#deck)"/>
+  <path d="M614 352 H666 L658 334 H622 Z" fill="#4BE3CF"/>
+  <path d="M624 334 H656" stroke="#0FA394" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="640" cy="318" r="9" fill="#E6FFF8" stroke="#12B5A0" stroke-width="3"/>
+
+  <!-- Shore lights -->
+  <circle cx="110" cy="470" r="26" fill="#8FEFDF" fill-opacity=".5" filter="url(#glowSm)"/>
+  <circle cx="1170" cy="470" r="26" fill="#8FEFDF" fill-opacity=".5" filter="url(#glowSm)"/>
+  <circle cx="110" cy="470" r="11" fill="#E4FDF6"/>
+  <circle cx="1170" cy="470" r="11" fill="#E4FDF6"/>
+
+  <!-- Three watched sites beneath the deck -->
+  <g stroke="#7FE0D2" stroke-opacity=".35" stroke-width="3" fill="none">
+    <path d="M440 470V560 M640 470V560 M840 470V560"/>
+  </g>
+  <circle cx="440" cy="566" r="18" fill="#8FEFDF" fill-opacity=".45" filter="url(#glowSm)"/>
+  <circle cx="640" cy="566" r="18" fill="#8FEFDF" fill-opacity=".45" filter="url(#glowSm)"/>
+  <circle cx="840" cy="566" r="18" fill="#8FEFDF" fill-opacity=".45" filter="url(#glowSm)"/>
+  <circle cx="440" cy="566" r="8" fill="#4BE3CF"/>
+  <circle cx="640" cy="566" r="8" fill="#4BE3CF"/>
+  <circle cx="840" cy="566" r="8" fill="#4BE3CF"/>
+
+  <text x="656" y="736" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="132" font-weight="500" letter-spacing="26" fill="#7FE6D8" fill-opacity=".35" filter="url(#glowText)">HEIMDALL</text>
+  <text x="656" y="736" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="132" font-weight="500" letter-spacing="26" fill="url(#word)">HEIMDALL</text>
+  <path d="M540 782H740" stroke="url(#rule)" stroke-width="4" stroke-linecap="round"/>
+</svg>
