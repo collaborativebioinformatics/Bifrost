@@ -18,7 +18,8 @@ from threading import Lock
 import httpx
 
 from adapters import registry
-from adapters.base import AggregateResult
+from adapters.base import AggregateResult, VariableStats
+from flare.app import linreg
 from scripts.sites import load_sites
 from server import disclosure_check, overseer_queue
 from server.aggregate import combine
@@ -29,54 +30,20 @@ _RELEASE_LOCK = Lock()
 
 
 def _validate_result(result: AggregateResult, tre_id: str, spec: AnalysisSpec) -> None:
-    """Validate the aggregate contract per site, before the shared merge."""
-    def count(value):
-        return type(value) is int and value >= 0
-
-    if (not isinstance(result, AggregateResult) or result.tre_id != tre_id
-            or not count(result.n) or not isinstance(result.stats, dict)
-            or not isinstance(result.rejected, list)
-            or not all(isinstance(reason, str) for reason in result.rejected)
-            or not isinstance(result.region, str) or result.spec_hash != spec.spec_hash()):
+    """Re-check the wire contract after the adapter ran (a buggy adapter may have
+    mutated its result after construction) and that it answers THIS spec."""
+    if not isinstance(result, AggregateResult):
         raise ValueError("invalid adapter result")
-    json.dumps(result.to_dict(), allow_nan=False)
+    checked = AggregateResult.model_validate(result.model_dump())  # schema: allow-list, finite, square Gram
+    if checked.tre_id != tre_id or checked.spec_hash != spec.spec_hash():
+        raise ValueError("result does not belong to this site/spec")
     expected = {"_linreg"} if spec.analysis_type == "fed_linreg" else set(spec.variables)
-    if set(result.stats) - expected:
+    if set(checked.stats) - expected or (not checked.rejected and set(checked.stats) != expected):
         raise ValueError("unexpected aggregate variables")
-    if not result.rejected and set(result.stats) != expected:
-        raise ValueError("missing aggregate variables")
-    for stats in result.stats.values():
-        if not isinstance(stats, dict):
-            raise ValueError("invalid aggregate statistics")
-        if spec.analysis_type == "fed_linreg":
-            if set(stats) - {"gram"} or ("gram" not in stats and not result.rejected):
-                raise ValueError("invalid regression statistics")
-            if "gram" not in stats:  # legitimately withheld by the site's filter
-                continue
-            gram = stats["gram"]
-            cols = ["intercept", spec.outcome, *spec.variables]
-            if (not isinstance(gram, dict) or gram.get("cols") != cols
-                    or not count(gram.get("n")) or gram["n"] != result.n):
-                raise ValueError("invalid Gram metadata")
-            matrix = gram.get("matrix")
-            if (not isinstance(matrix, list) or len(matrix) != len(cols)
-                    or any(not isinstance(row, list) or len(row) != len(cols)
-                           or any(type(v) not in (int, float) or not math.isfinite(v) for v in row)
-                           for row in matrix)):
-                raise ValueError("invalid Gram matrix")
-        else:
-            if set(stats) - {"genotype_counts", "allele_counts"}:
-                raise ValueError("invalid allele statistics")
-            table = stats.get("genotype_counts")
-            if (not isinstance(table, dict) or set(table) - {"0", "1", "2"}
-                    or not all(count(v) for v in table.values())):
-                raise ValueError("invalid genotype counts")
-            alleles = stats.get("allele_counts")
-            if alleles is None and result.rejected:
-                continue
-            if (not isinstance(alleles, dict) or set(alleles) != {"minor", "major", "n_alleles"}
-                    or not all(count(v) for v in alleles.values())):
-                raise ValueError("invalid allele counts")
+    if spec.analysis_type == "fed_linreg":
+        gram = checked.stats.get("_linreg", VariableStats()).gram
+        if gram is not None and (gram.cols != ["intercept", spec.outcome, *spec.variables] or gram.n != checked.n):
+            raise ValueError("invalid Gram metadata")
 
 
 def _public_reasons(reasons: list[str]) -> list[str]:
@@ -120,8 +87,24 @@ def _valid_statistics(merged: dict, spec: AnalysisSpec) -> bool:
     return bool(coef) and "error" not in ols and all(math.isfinite(v) for v in coef.values())
 
 
-def analyse(spec: AnalysisSpec) -> tuple[int, dict]:
-    """Collect every site's response, then apply the shared release workflow."""
+def _fedavg(results: list[AggregateResult], spec: AnalysisSpec, rounds: int, local_steps: int = 1, lr: float = 1.0) -> dict:
+    """Same maths as flare/app/linreg_controller.py, driven in-process: only β
+    per round would leave a site; the Gram matrices stay with the results."""
+    grams = [r.stats["_linreg"].gram.model_dump() for r in results if "_linreg" in r.stats and r.stats["_linreg"].gram]
+    scaling = linreg.global_scaling([linreg.moments(g) for g in grams])
+    beta, history = [0.0] * (len(scaling["features"]) + 1), []
+    for r in range(1, rounds + 1):
+        new = linreg.fedavg([linreg.local_update(g, beta, scaling["mean"], scaling["std"], lr, local_steps) for g in grams])
+        delta = max(abs(a - b) for a, b in zip(new, beta))
+        beta = new
+        coef = dict(zip(["intercept", *scaling["features"]], linreg.unstandardise(beta, scaling["mean"], scaling["std"])))
+        history.append({"round": r, "sites": len(grams), "max_delta": delta, "coef": coef})
+    return {"ols": {"outcome": spec.outcome, "coef": history[-1]["coef"]}, "n": scaling["n"], "history": history}
+
+
+def analyse(spec: AnalysisSpec, fedavg_rounds: int = 0) -> tuple[int, dict]:
+    """Collect every site's response, then apply the shared release workflow.
+    fedavg_rounds > 0 (fed_linreg only) reports the FedAvg fit instead of the exact solve."""
     expected = [s["tre_id"] for s in load_sites()["sites"]]
     timeout = float(os.environ.get("API_TRE_TIMEOUT", "10"))
     workers = int(os.environ.get("API_TRE_WORKERS", "8"))
@@ -141,6 +124,11 @@ def analyse(spec: AnalysisSpec) -> tuple[int, dict]:
     merged = combine(results, expected)
     merged["spec_hash"] = spec.spec_hash()  # also identify zero-response attempts
     merged["sites_failed"] = failed
+    if spec.analysis_type == "fed_linreg" and results:
+        merged["method"] = {"mode": "exact"}
+        if fedavg_rounds > 0 and "_linreg" in merged["stats"]:
+            merged["stats"]["_linreg"] = _fedavg(results, spec, fedavg_rounds)
+            merged["method"] = {"mode": "fedavg", "rounds": fedavg_rounds, "local_steps": 1, "lr": 1.0}
     spec_dict = spec.model_dump()
     with _RELEASE_LOCK:
         check = disclosure_check.check(merged, spec_dict, overseer_queue.release_log_path())

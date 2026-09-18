@@ -10,29 +10,83 @@ type (M4) needs no adapter changes: it composes the same primitives.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import asdict, dataclass, field
-from typing import Any
+import math
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from adapters import safe_output
 from harmonisation import local_name, var_type
 from spec.analysis_spec import AnalysisSpec
 
 
-@dataclass
-class AggregateResult:
+class _Strict(BaseModel):
+    """Every wire model: unknown keys are rejected, NaN/inf never serialise."""
+
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+
+class AlleleCounts(_Strict):
+    minor: int = Field(ge=0)
+    major: int = Field(ge=0)
+    n_alleles: int = Field(ge=0)
+
+
+class Gram(_Strict):
+    """Cross-product matrix of [intercept, outcome, *features]: the OLS sufficient statistic."""
+
+    n: int = Field(ge=0)
+    cols: list[str] = Field(min_length=1)
+    matrix: list[list[float]]
+
+    @model_validator(mode="after")
+    def _square_and_finite(self):
+        k = len(self.cols)
+        if len(self.matrix) != k or any(len(row) != k for row in self.matrix):
+            raise ValueError(f"gram matrix must be {k}x{k}")
+        if any(not math.isfinite(v) for row in self.matrix for v in row):
+            raise ValueError("gram matrix must be finite")
+        return self
+
+
+class VariableStats(_Strict):
+    """Everything a site may release about one canonical variable. Absent fields
+    were either not requested or withheld by the Safe Output filter (see
+    AggregateResult.rejected). The field list IS the aggregate allow-list."""
+
+    count: int | None = Field(default=None, ge=0)
+    sum: float | None = None
+    sum_sq: float | None = None
+    min: float | None = None
+    max: float | None = None
+    genotype_counts: dict[str, int] | None = None  # level -> n, small cells removed
+    histogram: dict[str, int] | None = None
+    allele_counts: AlleleCounts | None = None
+    gram: Gram | None = None
+
+    def present(self) -> dict:
+        """The released fields as a plain dict (what the merge works on)."""
+        return self.model_dump(exclude_none=True)
+
+    def __contains__(self, key: str) -> bool:
+        return getattr(self, key, None) is not None
+
+
+class AggregateResult(_Strict):
+    """The only thing that crosses from a TRE to the federation."""
+
     tre_id: str
-    n: int
-    stats: dict[str, dict[str, Any]]  # canonical_var -> {count, sum, sum_sq, min, max, genotype_counts?, allele_counts?}
-    rejected: list[str] = field(default_factory=list)  # vars/cells suppressed by the Safe Output filter
+    n: int = Field(ge=0)  # rows in the (filtered) cohort; 0 when nothing was released
+    stats: dict[str, VariableStats] = Field(default_factory=dict)  # canonical variable -> released stats
+    rejected: list[str] = Field(default_factory=list)  # "<var>.<field>[.<cell>]:<reason>" suppressed by Safe Output
     region: str = ""
     spec_hash: str = ""
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        return self.model_dump(exclude_none=True)
 
     @classmethod
     def from_dict(cls, d: dict) -> "AggregateResult":
-        return cls(**d)
+        return cls.model_validate(d)
 
 
 class TREAdapter(ABC):
