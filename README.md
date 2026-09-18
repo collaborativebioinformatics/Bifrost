@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/logo-heimdall.svg" alt="Heimdall" width="560">
+  <img src="docs/logo.svg" alt="Heimdall" width="560">
 </p>
 
 <p align="center">
