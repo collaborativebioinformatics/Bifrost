@@ -2,8 +2,13 @@
 
 The two FedAvg tests in test_m4_linreg.py differ in learning rate, local steps and round
 count simultaneously (1.0/1/15 versus 0.5/5/60), so neither isolates the effect of local
-steps. This one does, and pins the measured value at every checkpoint so that a change in
-the optimiser shows up as a test failure rather than a silently different number.
+steps. This one does, and checks the reported behaviour at every checkpoint so that a change
+in the optimiser shows up as a test failure rather than a silently different number.
+
+These are regression tolerances, not exact reproduction: the O(1e-2) residuals are checked
+within 5%, and the converged cases are checked by magnitude (< 1e-9) because their digits
+are at numerical precision and not meaningful. A pass does not reproduce the archive's
+digits exactly.
 
 Values recorded in docs/local_steps_controlled.md; keep the two in step.
 """
@@ -77,11 +82,13 @@ def test_one_step_converges_where_five_does_not(grams, scaling, lr, rounds):
     assert one < 1e-9 < 1e-3 < five, f"lr={lr} rounds={rounds}: one={one:.3e} five={five:.3e}"
 
 
-def test_five_step_residual_unchanged_across_round_counts(grams, scaling):
-    """Five-step residual does not shrink with 20x more rounds, at displayed precision.
+@pytest.mark.parametrize("lr,rounds", [(1.0, (10, 50, 200)), (0.5, (10, 60, 200))])
+def test_five_step_residual_unchanged_across_round_counts(grams, scaling, lr, rounds):
+    """Five-step residual does not shrink with 20x more rounds, at the documented precision.
 
-    This is an observation at the tested checkpoints, not a proof of a fixed point.
+    Compares every checkpoint, not just the endpoints, and at the four significant figures
+    the archive table prints -- a looser tolerance would pass values that differ visibly
+    there. This is an observation at the tested checkpoints, not a proof of a fixed point.
     """
-    for lr, rounds in [(1.0, (10, 50, 200)), (0.5, (10, 60, 200))]:
-        values = [_deviation(grams, scaling, lr, 5, r) for r in rounds]
-        assert values[0] == pytest.approx(values[-1], rel=1e-3), f"lr={lr}: {values}"
+    shown = [f"{_deviation(grams, scaling, lr, 5, r):.3e}" for r in rounds]
+    assert len(set(shown)) == 1, f"lr={lr} rounds={rounds}: {shown}"

@@ -1,7 +1,9 @@
 # Controlled comparison: local steps in federated averaging
 
-Recorded 2026-09-17. Reproduced by [`tests/test_local_steps_controlled.py`](../tests/test_local_steps_controlled.py),
-which pins every value below.
+Recorded 2026-09-17. Guarded by [`tests/test_local_steps_controlled.py`](../tests/test_local_steps_controlled.py),
+which checks the behaviour below within regression tolerances — the O(1e-2) residuals to
+within 5%, the converged cases by magnitude (< 1e-9). A passing test does not reproduce the
+exact digits in the table.
 
 ## Why this exists
 
@@ -81,10 +83,15 @@ Exact cross-product aggregation on the same Gram matrices: 1.688e-11.
 | numpy | 1.26.4 |
 | pandas | 2.2.3 |
 
-`pyproject.toml` declares `requires-python = ">=3.11,<3.13"`, so 3.13.5 is outside the
-supported range. Every value in the table was also obtained on Python 3.11.14 through a
-path that builds the Gram matrices directly from `data/sites/*.csv` without the adapters,
-and was identical to all digits shown. The figures therefore do not depend on the
-interpreter or on the adapter layer. The separate question of whether the full test suite
-passes on a supported interpreter is not settled by this: the 3.11 environment used here
-lacks `duckdb`, so the suite was not run there.
+`pyproject.toml` declares `requires-python = ">=3.11,<3.13"`, so the 3.13.5 used to record
+the table is outside the supported range. Two checks cover that:
+
+- Every value in the table was also obtained on Python 3.11.14 through a path that builds
+  the Gram matrices directly from `data/sites/*.csv` without the adapters, and was
+  identical to all digits shown. The figures do not depend on the interpreter or on the
+  adapter layer.
+- CI runs the fast suite on 3.11 and 3.12 ([run 35318612599](https://github.com/collaborativebioinformatics/Bifrost/actions/runs/35318612599)):
+  79 passed, 3 deselected on both. The tests here pass on supported interpreters.
+
+CI establishes that the assertions hold on supported versions, within the tolerances above.
+It does not establish that the exact digits in the table reproduce across environments.
