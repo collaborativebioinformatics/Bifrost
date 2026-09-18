@@ -24,7 +24,7 @@ case "${1:-}" in
   up)
     mkdir -p $FED
     sed -E 's/^(  host:) .*/\1 localhost/' sites.yaml > $FED/sites.yaml
-    [ -f data/ground_truth.json ] || $PY data/generate.py
+    ls data/sites/*.csv >/dev/null 2>&1 || $PY data/generate.py
     $PY scripts/gen_sites.py > /dev/null
     rm -rf $FED/workspace/$PROJECT/prod_*
     $PY -m nvflare.lighter.provision -p flare/project.yml -w $FED/workspace --force > /dev/null

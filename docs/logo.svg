@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="840" viewBox="0 0 1280 840" role="img" aria-labelledby="title desc">
+  <title id="title">Heimdall</title>
+  <desc id="desc">A luminous teal-to-violet bridge arc with a small striped lighthouse standing on the deck at its centre, its beam sweeping both ways, three lit sites beneath, above a widely spaced Heimdall wordmark. Transparent background, for dark backgrounds.</desc>
+  <defs>
+    <linearGradient id="spectrum" x1="200" y1="462" x2="1080" y2="200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#12B5A0"/>
+      <stop offset=".38" stop-color="#4BE3CF"/>
+      <stop offset=".66" stop-color="#A9F2F0"/>
+      <stop offset=".86" stop-color="#9CC4F5"/>
+      <stop offset="1" stop-color="#A9A4FF"/>
+    </linearGradient>
+    <linearGradient id="inner" x1="270" y1="462" x2="1010" y2="240" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0FA394"/>
+      <stop offset=".62" stop-color="#3DD1C1"/>
+      <stop offset="1" stop-color="#86AEEC"/>
+    </linearGradient>
+    <linearGradient id="deck" x1="110" y1="0" x2="1170" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2BC4AE"/>
+      <stop offset=".5" stop-color="#E6FFF8"/>
+      <stop offset="1" stop-color="#8FB8F0"/>
+    </linearGradient>
+    <linearGradient id="word" x1="180" y1="0" x2="1100" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#12B5A0"/>
+      <stop offset=".45" stop-color="#4BE3CF"/>
+      <stop offset=".75" stop-color="#9CC4F5"/>
+      <stop offset="1" stop-color="#A9A4FF"/>
+    </linearGradient>
+    <linearGradient id="rule" x1="540" y1="0" x2="740" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#12B5A0"/>
+      <stop offset=".5" stop-color="#4BE3CF"/>
+      <stop offset="1" stop-color="#A9A4FF"/>
+    </linearGradient>
+    <linearGradient id="beamL" x1="626" y1="0" x2="500" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E6FFF8" stop-opacity=".9"/>
+      <stop offset="1" stop-color="#4BE3CF" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="beamR" x1="654" y1="0" x2="780" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E6FFF8" stop-opacity=".9"/>
+      <stop offset="1" stop-color="#4BE3CF" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="glow" x="-15%" y="-40%" width="130%" height="180%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="22"/>
+    </filter>
+    <filter id="glowSm" x="-150%" y="-150%" width="400%" height="400%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+    <filter id="glowText" x="-10%" y="-40%" width="120%" height="180%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+  </defs>
+
+  <!-- Soft light bleed behind the span, the deck and the beacon -->
+  <g fill="none" stroke-linecap="round" filter="url(#glow)" opacity=".6">
+    <path d="M 200,462 C 252,50 1028,50 1080,462" stroke="url(#spectrum)" stroke-width="54"/>
+    <path d="M110 470H1170" stroke="url(#deck)" stroke-width="26"/>
+  </g>
+
+  <!-- The bridge -->
+  <g fill="none" stroke-linecap="round">
+    <path d="M 270,462 C 318,140 962,140 1010,462" stroke="url(#inner)" stroke-width="12"/>
+    <path d="M 200,462 C 252,50 1028,50 1080,462" stroke="url(#spectrum)" stroke-width="38"/>
+    <path d="M110 470H1170" stroke="url(#deck)" stroke-width="18"/>
+    <path d="M200 470V532 M1080 470V532" stroke="url(#deck)" stroke-width="20"/>
+  </g>
+
+  <!-- The lighthouse: tapered striped tower, gallery, lantern room, dome, and a beam both ways -->
+  <g transform="translate(640 470) scale(1.25) translate(-640 -470)">
+  <g opacity=".55">
+    <path d="M626 346 L500 310 L500 382 Z" fill="url(#beamL)"/>
+    <path d="M654 346 L780 310 L780 382 Z" fill="url(#beamR)"/>
+  </g>
+  <circle cx="640" cy="346" r="34" fill="#4BE3CF" fill-opacity=".45" filter="url(#glowSm)"/>
+  <path d="M618 470 L626 372 H654 L662 470 Z" fill="#CFF6EF"/>
+  <path d="M621 440 H659 M623 414 H657" stroke="#12B5A0" stroke-width="9"/>
+  <rect x="606" y="364" width="68" height="8" rx="3" fill="#0FA394"/>
+  <rect x="626" y="332" width="28" height="32" fill="#CFF6EF"/>
+  <path d="M626 332 H654 M626 348 H654 M640 332 V364" stroke="#0FA394" stroke-width="2.5"/>
+  <circle cx="640" cy="348" r="7" fill="#FFFFFF"/>
+  <path d="M624 332 Q640 306 656 332 Z" fill="#12B5A0"/>
+  <circle cx="640" cy="304" r="4" fill="#E6FFF8"/>
+  <rect x="632" y="450" width="16" height="20" rx="2" fill="#0FA394"/>
+  </g>
+
+  <!-- Shore lights -->
+  <circle cx="110" cy="470" r="26" fill="#8FEFDF" fill-opacity=".5" filter="url(#glowSm)"/>
+  <circle cx="1170" cy="470" r="26" fill="#8FEFDF" fill-opacity=".5" filter="url(#glowSm)"/>
+  <circle cx="110" cy="470" r="11" fill="#E4FDF6"/>
+  <circle cx="1170" cy="470" r="11" fill="#E4FDF6"/>
+
+  <!-- Three watched sites beneath the deck -->
+  <g stroke="#7FE0D2" stroke-opacity=".35" stroke-width="3" fill="none">
+    <path d="M440 470V560 M640 470V560 M840 470V560"/>
+  </g>
+  <circle cx="440" cy="566" r="18" fill="#8FEFDF" fill-opacity=".45" filter="url(#glowSm)"/>
+  <circle cx="640" cy="566" r="18" fill="#8FEFDF" fill-opacity=".45" filter="url(#glowSm)"/>
+  <circle cx="840" cy="566" r="18" fill="#8FEFDF" fill-opacity=".45" filter="url(#glowSm)"/>
+  <circle cx="440" cy="566" r="8" fill="#4BE3CF"/>
+  <circle cx="640" cy="566" r="8" fill="#4BE3CF"/>
+  <circle cx="840" cy="566" r="8" fill="#4BE3CF"/>
+
+  <text x="656" y="736" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="132" font-weight="500" letter-spacing="26" fill="#7FE6D8" fill-opacity=".35" filter="url(#glowText)">HEIMDALL</text>
+  <text x="656" y="736" text-anchor="middle" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="132" font-weight="500" letter-spacing="26" fill="url(#word)">HEIMDALL</text>
+  <path d="M540 782H740" stroke="url(#rule)" stroke-width="4" stroke-linecap="round"/>
+</svg>

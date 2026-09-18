@@ -59,15 +59,21 @@ def main() -> None:
     ap.add_argument("--rounds", type=int, default=20)
     ap.add_argument("--local-steps", type=int, default=1)
     ap.add_argument("--lr", type=float, default=1.0)
-    ap.add_argument("--tol", type=float, default=None, help="verify tolerance (default 1e-9 exact, 1e-6 fedavg)")
+    ap.add_argument("--newton-tol", type=float, default=1e-8, help="fed_logreg: Newton-Raphson convergence tolerance")
+    ap.add_argument("--ridge", type=float, default=1e-6, help="fed_logreg: Hessian damping term")
+    ap.add_argument("--tol", type=float, default=None, help="verify tolerance (default 1e-9 exact, 1e-6 fedavg/fed_logreg)")
     a = ap.parse_args()
+
+    from spec.analysis_spec import AnalysisSpec  # noqa: E402
+    spec_obj = AnalysisSpec.model_validate_json(a.spec.read_text())
 
     cfg = load_sites()
     project = cfg.get("project", {}).get("name", "federated_apis")
     clients = [s["tre_id"] for s in cfg["sites"]]
     fedavg = {"rounds": a.rounds, "local_steps": a.local_steps, "lr": a.lr} if a.fedavg else None
+    logreg = {"rounds": a.rounds, "tol": a.newton_tol, "ridge": a.ridge} if spec_obj.analysis_type == "fed_logreg" else None
     job_name = a.spec.stem + ("_fedavg" if a.fedavg else "")
-    job = build(a.spec, ROOT / "flare" / "jobs" / job_name, a.min_clients, a.wait_time, a.task_timeout, fedavg)
+    job = build(a.spec, ROOT / "flare" / "jobs" / job_name, a.min_clients, a.wait_time, a.task_timeout, fedavg, logreg)
     before = {p.name for p in out_dir().iterdir()} if out_dir().exists() else set()
     t0 = time.time()
     if a.mode == "simulator":
@@ -83,7 +89,7 @@ def main() -> None:
         sys.exit("no result written (in prod mode the result lives on the server: see server/out/ or /server_out)")
     res = runs[-1] / "result.json"
     print(f"\nresult: {res}")
-    tol = a.tol if a.tol is not None else (1e-6 if a.fedavg else 1e-9)
+    tol = a.tol if a.tol is not None else (1e-6 if (a.fedavg or logreg) else 1e-9)
     if (ROOT / "data" / "ground_truth.json").exists():
         subprocess.run([sys.executable, str(ROOT / "scripts" / "verify.py"), str(res), "--tol", str(tol)], cwd=ROOT)
     else:  # the orchestrator has no ground truth by design; verify on the host against server/out

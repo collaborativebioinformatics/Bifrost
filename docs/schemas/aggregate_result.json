@@ -1,0 +1,231 @@
+{
+  "$defs": {
+    "AlleleCounts": {
+      "additionalProperties": false,
+      "properties": {
+        "minor": {
+          "minimum": 0,
+          "title": "Minor",
+          "type": "integer"
+        },
+        "major": {
+          "minimum": 0,
+          "title": "Major",
+          "type": "integer"
+        },
+        "n_alleles": {
+          "minimum": 0,
+          "title": "N Alleles",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "minor",
+        "major",
+        "n_alleles"
+      ],
+      "title": "AlleleCounts",
+      "type": "object"
+    },
+    "Gram": {
+      "additionalProperties": false,
+      "description": "Cross-product matrix of [intercept, outcome, *features]: the OLS sufficient statistic.",
+      "properties": {
+        "n": {
+          "minimum": 0,
+          "title": "N",
+          "type": "integer"
+        },
+        "cols": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Cols",
+          "type": "array"
+        },
+        "matrix": {
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "title": "Matrix",
+          "type": "array"
+        }
+      },
+      "required": [
+        "n",
+        "cols",
+        "matrix"
+      ],
+      "title": "Gram",
+      "type": "object"
+    },
+    "VariableStats": {
+      "additionalProperties": false,
+      "description": "Everything a site may release about one canonical variable. Absent fields\nwere either not requested or withheld by the Safe Output filter (see\nAggregateResult.rejected). The field list IS the aggregate allow-list.",
+      "properties": {
+        "count": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Count"
+        },
+        "sum": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sum"
+        },
+        "sum_sq": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sum Sq"
+        },
+        "min": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min"
+        },
+        "max": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max"
+        },
+        "genotype_counts": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Genotype Counts"
+        },
+        "histogram": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Histogram"
+        },
+        "allele_counts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AlleleCounts"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "gram": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Gram"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "VariableStats",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The only thing that crosses from a TRE to the federation.",
+  "properties": {
+    "tre_id": {
+      "title": "Tre Id",
+      "type": "string"
+    },
+    "n": {
+      "minimum": 0,
+      "title": "N",
+      "type": "integer"
+    },
+    "stats": {
+      "additionalProperties": {
+        "$ref": "#/$defs/VariableStats"
+      },
+      "title": "Stats",
+      "type": "object"
+    },
+    "rejected": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Rejected",
+      "type": "array"
+    },
+    "region": {
+      "default": "",
+      "title": "Region",
+      "type": "string"
+    },
+    "spec_hash": {
+      "default": "",
+      "title": "Spec Hash",
+      "type": "string"
+    }
+  },
+  "required": [
+    "tre_id",
+    "n"
+  ],
+  "title": "AggregateResult",
+  "type": "object"
+}

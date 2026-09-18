@@ -51,16 +51,16 @@ def test_allele_freq_same_shape_and_matches_ground_truth(adapters):
         assert isinstance(r, AggregateResult)
         assert r.n == GT["n_per_site"][tid]
         assert r.rejected == [], tid
-        shapes.add(tuple((v, tuple(sorted(r.stats[v]))) for v in SNPS))
+        shapes.add(tuple((v, tuple(sorted(r.stats[v].present()))) for v in SNPS))
         for v in SNPS:
-            ac = r.stats[v]["allele_counts"]
-            assert ac["n_alleles"] == 2 * r.n
-            assert abs(ac["minor"] / ac["n_alleles"] - GT["site_allele_freq"][tid][v]) < 1e-12
+            ac = r.stats[v].allele_counts
+            assert ac.n_alleles == 2 * r.n
+            assert abs(ac.minor / ac.n_alleles - GT["site_allele_freq"][tid][v]) < 1e-12
     assert len(shapes) == 1, "adapters must return the same result shape"
     # the server's job, in one line: sums are associative
     for v in SNPS:
-        minor = sum(r.stats[v]["allele_counts"]["minor"] for r in results.values())
-        total = sum(r.stats[v]["allele_counts"]["n_alleles"] for r in results.values())
+        minor = sum(r.stats[v].allele_counts.minor for r in results.values())
+        total = sum(r.stats[v].allele_counts.n_alleles for r in results.values())
         assert abs(minor / total - GT["allele_freq"][v]) < 1e-12
 
 
@@ -68,8 +68,8 @@ def test_fed_stats_sums_to_global_mean(adapters):
     spec = AnalysisSpec(analysis_type="fed_stats", variables=["age", "bmi", "snp_rs005"], project_id=PROJECT)
     results = [a.run(spec) for a in adapters.values()]
     for v in ("age", "bmi"):
-        assert all(set(r.stats[v]) == {"count", "sum", "sum_sq", "min", "max"} for r in results)
-        mean = sum(r.stats[v]["sum"] for r in results) / sum(r.stats[v]["count"] for r in results)
+        assert all(set(r.stats[v].present()) == {"count", "sum", "sum_sq", "min", "max"} for r in results)
+        mean = sum(r.stats[v].sum for r in results) / sum(r.stats[v].count for r in results)
         assert abs(mean - GT["mean"][v]) < 1e-9
     assert all("allele_counts" in r.stats["snp_rs005"] for r in results)
 
@@ -80,14 +80,14 @@ def test_filters_translate_to_local_columns(adapters):
     for tid, a in adapters.items():
         r = a.run(spec)
         assert 0 < r.n < GT["n_per_site"][tid]
-        assert r.stats["age"]["min"] >= 60
+        assert r.stats["age"].min >= 60
 
 
 def test_fed_linreg_gram_reproduces_global_ols(adapters):
     feats = GT["ols"]["features"]
     spec = AnalysisSpec(analysis_type="fed_linreg", variables=feats, outcome=GT["ols"]["outcome"], project_id=PROJECT)
     results = [a.run(spec) for a in adapters.values()]
-    G = sum(np.array(r.stats["_linreg"]["gram"]["matrix"]) for r in results)  # associative
+    G = sum(np.array(r.stats["_linreg"].gram.matrix) for r in results)  # associative
     XtX, Xty = G[np.ix_([0, *range(2, len(feats) + 2)], [0, *range(2, len(feats) + 2)])], G[[0, *range(2, len(feats) + 2)], 1]
     beta = np.linalg.solve(XtX, Xty)
     expected = [GT["ols"]["coef"][k] for k in ("intercept", *feats)]
@@ -102,7 +102,7 @@ def test_small_cells_suppressed_and_audited(adapters):
         assert any(x.startswith("snp_rs001.genotype_counts.2:") for x in r.rejected), tid
         assert "snp_rs001.allele_counts:derived_from_suppressed_cell" in r.rejected
         assert "allele_counts" not in r.stats["snp_rs001"]
-        assert "2" not in r.stats["snp_rs001"]["genotype_counts"]
+        assert "2" not in r.stats["snp_rs001"].genotype_counts
         last = _audit_lines(tid)[-1]
         assert last["decision"] == "PARTIAL" and last["spec_hash"] == spec.spec_hash() and last["tre_id"] == tid
 
@@ -127,7 +127,7 @@ def test_only_allow_listed_keys_leave():
     spec = AnalysisSpec(analysis_type="fed_stats", variables=["age"], project_id=PROJECT)
     raw = {"age": {"count": 50, "sum": 1.0, "rows": [1, 2, 3], "mean": 3.0}}
     r = safe_output.filter("x", "r", spec, 50, raw)
-    assert set(r.stats["age"]) == {"count", "sum"}
+    assert set(r.stats["age"].present()) == {"count", "sum"}
     assert sorted(r.rejected) == ["age.mean:not_allow_listed", "age.rows:not_allow_listed"]
 
 

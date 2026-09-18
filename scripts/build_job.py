@@ -25,12 +25,16 @@ CUSTOM_FILES = ["projects.yaml", "scripts/__init__.py", "scripts/sites.py"]
 
 
 def build(spec_path: Path, out: Path, min_clients: int, wait_time: int, task_timeout: int = 300,
-          fedavg: dict | None = None) -> Path:
+          fedavg: dict | None = None, logreg: dict | None = None) -> Path:
     """fedavg = {"rounds", "local_steps", "lr"} switches a fed_linreg spec from the one-round
-    exact (Gram matrix) workflow to the multi-round FedAvg workflow where only β leaves."""
+    exact (Gram matrix) workflow to the multi-round FedAvg workflow where only β leaves.
+    logreg = {"rounds", "tol", "ridge"}: fed_logreg always runs multi-round Newton-Raphson
+    (there is no one-round "exact" mode for logistic regression)."""
     spec = AnalysisSpec.model_validate_json(spec_path.read_text())
     if fedavg and spec.analysis_type != "fed_linreg":
         raise ValueError("--fedavg needs a fed_linreg spec")
+    if spec.analysis_type == "fed_logreg" and not logreg:
+        raise ValueError("fed_logreg needs logreg={'rounds', 'tol', 'ridge'}")
     if out.exists():
         shutil.rmtree(out)
     app = out / "app"
@@ -50,7 +54,10 @@ def build(spec_path: Path, out: Path, min_clients: int, wait_time: int, task_tim
         "deploy_map": {"app": ["@ALL"]},
     }, indent=2))
     common = {"spec": spec.model_dump(), "min_clients": min_clients, "wait_time": wait_time, "task_timeout": task_timeout}
-    if fedavg:
+    if spec.analysis_type == "fed_logreg":
+        workflow = {"id": "fed_logreg", "path": "flare.app.logreg_controller.FedLogregController", "args": {**common, **logreg}}
+        executor = {"tasks": ["logreg_init", "logreg_step"], "executor": {"path": "flare.app.logreg_executor.LogregExecutor", "args": {}}}
+    elif fedavg:
         workflow = {"id": "fed_linreg", "path": "flare.app.linreg_controller.FedLinregController", "args": {**common, **fedavg}}
         executor = {"tasks": ["linreg_init", "linreg_train"], "executor": {"path": "flare.app.linreg_executor.LinregExecutor", "args": {}}}
     else:
@@ -72,10 +79,14 @@ def main() -> None:
     ap.add_argument("--rounds", type=int, default=20)
     ap.add_argument("--local-steps", type=int, default=1)
     ap.add_argument("--lr", type=float, default=1.0)
+    ap.add_argument("--tol", type=float, default=1e-8, help="fed_logreg: Newton-Raphson convergence tolerance")
+    ap.add_argument("--ridge", type=float, default=1e-6, help="fed_logreg: Hessian damping term")
     a = ap.parse_args()
+    spec = AnalysisSpec.model_validate_json(a.spec.read_text())
     out = a.out or ROOT / "flare" / "jobs" / (a.spec.stem + ("_fedavg" if a.fedavg else ""))
+    logreg = {"rounds": a.rounds, "tol": a.tol, "ridge": a.ridge} if spec.analysis_type == "fed_logreg" else None
     build(a.spec, out, a.min_clients, a.wait_time, a.task_timeout,
-          {"rounds": a.rounds, "local_steps": a.local_steps, "lr": a.lr} if a.fedavg else None)
+          {"rounds": a.rounds, "local_steps": a.local_steps, "lr": a.lr} if a.fedavg else None, logreg)
     print(out)
 
 

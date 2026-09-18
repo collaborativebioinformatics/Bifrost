@@ -78,7 +78,7 @@ class FedLinregController(Controller):
                 break
             miss = [s for s in sites if s not in replies]
             if miss:
-                missing_rounds[r] = miss
+                missing_rounds[str(r)] = miss
             new_beta = linreg.fedavg([rep["update"] for rep in replies.values()])
             delta = max(abs(a - b) for a, b in zip(new_beta, beta))
             beta = new_beta

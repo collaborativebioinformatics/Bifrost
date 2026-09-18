@@ -64,15 +64,15 @@ def test_allele_freq_end_to_end(tres, sites, tmp_path):
 
 
 def test_straggler_yields_partial_coverage(tres, sites, tmp_path):
-    """A client whose TRE is unreachable fails; the round still completes with k/N coverage."""
+    """A site in sites.yaml whose client never shows up: the round still completes, coverage says k/N."""
     from scripts.build_job import build
 
     job = build(ROOT / "spec" / "examples" / "allele_freq.json", tmp_path / "job", min_clients=2, wait_time=2)
     out = tmp_path / "out"
-    clients = [s["tre_id"] for s in sites] + ["ghost"]  # a provisioned site that never registered a TRE
-    _simulate(job, tmp_path / "ws", out, clients)
+    present = [s["tre_id"] for s in sites][:-1]  # the last site's client is down
+    _simulate(job, tmp_path / "ws", out, present)
     res = json.loads(next(d for d in out.iterdir() if d.is_dir() and d.name != "audit").joinpath("result.json").read_text())
-    assert res["coverage"] == f"{len(sites)}/{len(clients)} sites" and res["sites_missing"] == ["ghost"]
+    assert res["coverage"] == f"{len(present)}/{len(sites)} sites" and res["sites_missing"] == [sites[-1]["tre_id"]]
 
 
 def test_fed_linreg_fedavg_end_to_end(tres, sites, tmp_path):
@@ -92,3 +92,23 @@ def test_fed_linreg_fedavg_end_to_end(tres, sites, tmp_path):
     for s in sites:
         lines = (out / "audit" / "audit.jsonl").read_text().splitlines()
         assert sum(1 for l in lines if f'"tre_id": "{s["tre_id"]}"' in l and "fedavg_round=" in l) == 8
+
+
+def test_fed_logreg_newton_end_to_end(tres, sites, tmp_path):
+    """Federated Newton-Raphson (IRLS): grad/Hessian leave each round; converges to the pooled MLE."""
+    from scripts.build_job import build
+
+    job = build(ROOT / "spec" / "examples" / "fed_logreg.json", tmp_path / "job", min_clients=2, wait_time=1,
+                logreg={"rounds": 25, "tol": 1e-8, "ridge": 1e-6})
+    out = tmp_path / "out"
+    _simulate(job, tmp_path / "ws", out, [s["tre_id"] for s in sites])
+    res = json.loads(next(d for d in out.iterdir() if d.is_dir() and d.name != "audit").joinpath("result.json").read_text())
+    gt = json.loads((ROOT / "data" / "ground_truth.json").read_text())
+    assert res["method"]["mode"] == "newton_raphson"
+    coef = res["stats"]["_logreg"]["logreg"]["coef"]
+    assert max(abs(coef[k] - gt["logreg"]["coef"][k]) for k in coef) < 1e-6
+    # per-round audit lines exist at every site
+    rounds = res["method"]["rounds"]
+    for s in sites:
+        lines = (out / "audit" / "audit.jsonl").read_text().splitlines()
+        assert sum(1 for l in lines if f'"tre_id": "{s["tre_id"]}"' in l and "newton_raphson_round" in l) == rounds

@@ -37,3 +37,7 @@ class DataShieldAdapter(HttpAdapter):
 
     def gram(self, cols: list[str], filters: dict) -> dict:
         return self._ds("ds.crossProd", cols=[f"D${c}" for c in cols], filter=filters)
+
+    def irls_step(self, outcome_col: str, feature_cols: list[str], beta: list[float], filters: dict) -> dict:
+        return self._ds("ds.irls", outcome=f"D${outcome_col}", features=[f"D${c}" for c in feature_cols],
+                         beta=beta, filter=filters)

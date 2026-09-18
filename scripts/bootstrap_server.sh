@@ -21,7 +21,7 @@ export PATH="$PWD/.venv/bin:$PATH" PYTHONPATH=$PWD
 # server.host is what every client dials and what the server certificate is issued for
 sed -i.bak -E "s/^(  host:) .*/\1 $HOST/" sites.yaml && rm -f sites.yaml.bak
 grep -A3 "^server:" sites.yaml
-[ -f data/ground_truth.json ] || python data/generate.py >/dev/null
+ls data/sites/*.csv >/dev/null 2>&1 || python data/generate.py >/dev/null
 
 KITS=$(scripts/provision.sh)
 PORT=$(python -c "import yaml; print(yaml.safe_load(open('sites.yaml'))['server']['fed_learn_port'])")

@@ -1,7 +1,7 @@
 import './globals.css'
 
 export const metadata = {
-  title: 'Bifrost | Federated Analysis',
+  title: 'Heimdall | Federated Analysis',
   description: 'Disclosure-safe cross-TRE analysis workspace',
 }
 

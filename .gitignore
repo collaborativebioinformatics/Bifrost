@@ -24,3 +24,8 @@ flare/kits/
 *.fam
 *_geno.*
 site*_nordik_sim.*
+.remote/
+server/api_out/
+frontend/.next/
+frontend/AGENTS.md
+frontend/CLAUDE.md

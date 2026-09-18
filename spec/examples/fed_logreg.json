@@ -1,0 +1,1 @@
+{"analysis_type": "fed_logreg", "outcome": "case", "variables": ["age", "sex", "bmi", "ldl", "snp_rs001", "snp_rs007"], "project_id": "ncfh-2026-demo", "min_cell_size": 5}

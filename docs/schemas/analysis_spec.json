@@ -1,0 +1,57 @@
+{
+  "properties": {
+    "analysis_type": {
+      "enum": [
+        "allele_freq",
+        "fed_stats",
+        "fed_linreg",
+        "fed_logreg"
+      ],
+      "title": "Analysis Type",
+      "type": "string"
+    },
+    "variables": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Variables",
+      "type": "array"
+    },
+    "filters": {
+      "additionalProperties": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Filters",
+      "type": "object"
+    },
+    "min_cell_size": {
+      "default": 5,
+      "title": "Min Cell Size",
+      "type": "integer"
+    },
+    "project_id": {
+      "title": "Project Id",
+      "type": "string"
+    },
+    "outcome": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Outcome"
+    }
+  },
+  "required": [
+    "analysis_type",
+    "variables",
+    "project_id"
+  ],
+  "title": "AnalysisSpec",
+  "type": "object"
+}

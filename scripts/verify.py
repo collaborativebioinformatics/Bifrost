@@ -68,10 +68,19 @@ def main() -> None:
                 err = abs(v - t)
                 worst = max(worst, err)
                 rows.append((f"ols {k}", v, t, err, ""))
+        if "logreg" in st and "coef" in st["logreg"] and full:
+            for k, v in st["logreg"]["coef"].items():
+                t = gt["logreg"]["coef"].get(k)
+                if t is None:
+                    continue
+                err = abs(v - t)
+                worst = max(worst, err)
+                rows.append((f"logreg {k}", v, t, err, ""))
         if "history" in st and full:
-            print("fedavg convergence (max |coef - truth| per round):")
+            truth_coef = gt["logreg"]["coef"] if "logreg" in st else gt["ols"]["coef"]
+            print("convergence (max |coef - truth| per round):")
             for h in st["history"]:
-                e = max(abs(v - gt["ols"]["coef"][k]) for k, v in h["coef"].items() if k in gt["ols"]["coef"])
+                e = max(abs(v - truth_coef[k]) for k, v in h["coef"].items() if k in truth_coef)
                 if h["round"] in (1, 2, 3, 5, 10, 20, 50, 100) or h["round"] == st["history"][-1]["round"]:
                     print(f"  round {h['round']:3d}  {h['sites']} sites  err {e:.2e}")
 
