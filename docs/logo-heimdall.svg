@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="840" viewBox="0 0 1280 840" role="img" aria-labelledby="title desc">
   <title id="title">Heimdall</title>
-  <desc id="desc">A luminous teal-to-violet bridge arc over a single watch-beacon on the horizon, with three lit sites beneath, above a widely spaced Heimdall wordmark. Transparent background, for dark backgrounds.</desc>
+  <desc id="desc">A luminous teal-to-violet bridge arc with a small watchtower standing on the deck at its centre, three lit sites beneath, above a widely spaced Heimdall wordmark. Transparent background, for dark backgrounds.</desc>
   <defs>
     <linearGradient id="spectrum" x1="200" y1="462" x2="1080" y2="200" gradientUnits="userSpaceOnUse">
       <stop stop-color="#12B5A0"/>
@@ -46,7 +46,6 @@
     <path d="M 200,462 C 252,50 1028,50 1080,462" stroke="url(#spectrum)" stroke-width="54"/>
     <path d="M110 470H1170" stroke="url(#deck)" stroke-width="26"/>
   </g>
-  <circle cx="640" cy="352" r="96" fill="#4BE3CF" fill-opacity=".22" filter="url(#glow)"/>
 
   <!-- The bridge -->
   <g fill="none" stroke-linecap="round">
@@ -56,10 +55,12 @@
     <path d="M200 470V532 M1080 470V532" stroke="url(#deck)" stroke-width="20"/>
   </g>
 
-  <!-- The watchman's beacon: one ring, one light, under the span -->
-  <circle cx="640" cy="352" r="62" fill="none" stroke="#4BE3CF" stroke-width="10"/>
-  <circle cx="640" cy="352" r="24" fill="#12B5A0"/>
-  <circle cx="640" cy="352" r="24" fill="#4BE3CF" fill-opacity=".55" filter="url(#glowSm)"/>
+  <!-- The watchtower: stands on the deck, a lamp at the top, no face -->
+  <circle cx="640" cy="318" r="30" fill="#4BE3CF" fill-opacity=".35" filter="url(#glowSm)"/>
+  <path d="M622 470 L628 352 H652 L658 470 Z" fill="url(#deck)"/>
+  <path d="M614 352 H666 L658 334 H622 Z" fill="#4BE3CF"/>
+  <path d="M624 334 H656" stroke="#0FA394" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="640" cy="318" r="9" fill="#E6FFF8" stroke="#12B5A0" stroke-width="3"/>
 
   <!-- Shore lights -->
   <circle cx="110" cy="470" r="26" fill="#8FEFDF" fill-opacity=".5" filter="url(#glowSm)"/>
