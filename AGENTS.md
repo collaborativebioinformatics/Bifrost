@@ -4,7 +4,7 @@ Instructions for AI coding agents working in this repository. Humans should star
 
 ## Project
 
-Bifrost — run one analysis across several Trusted Research Environments (TREs) without any record-level data leaving a TRE. Each TRE computes locally behind its own native API and returns disclosure-checked aggregates; a FLARE server combines them. Built by Team 1 for the NCFH 2026 hackathon.
+Heimdall — run one analysis across several Trusted Research Environments (TREs) without any record-level data leaving a TRE. Each TRE computes locally behind its own native API and returns disclosure-checked aggregates; a FLARE server combines them. Built by Team 1 for the NCFH 2026 hackathon.
 
 Python 3.11–3.12, NVIDIA FLARE, FastAPI, DuckDB, Docker Compose. Dependency version constraints are declared in [pyproject.toml](pyproject.toml); ask before adding one.
 

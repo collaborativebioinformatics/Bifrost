@@ -1,4 +1,4 @@
-"""Bifrost HTTP API -- the contract the researcher UI (frontend/) talks to.
+"""Heimdall HTTP API -- the contract the researcher UI (frontend/) talks to.
 
     SERVER_OUT=server/api_out uvicorn server.api:app --port 8500 --workers 1
 
@@ -37,7 +37,7 @@ from server.schemas import (AnalysisResponse, AuditLog, Metadata, OverseerDecisi
                             RunStatus)
 from spec.analysis_spec import AnalysisSpec
 
-app = FastAPI(title="Bifrost federated analysis API", version="0.2.0", description=__doc__)
+app = FastAPI(title="Heimdall federated analysis API", version="0.2.0", description=__doc__)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in os.environ.get("API_CORS_ORIGINS", "http://localhost:3000").split(",") if o.strip()],

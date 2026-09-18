@@ -1,8 +1,8 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Bifrost federated analysis API",
-    "description": "Bifrost HTTP API -- the contract the researcher UI (frontend/) talks to.\n\n    SERVER_OUT=server/api_out uvicorn server.api:app --port 8500 --workers 1\n\nStart mock TREs separately with `python scripts/dev_tres.py`. Neither TREs nor\nFLARE are required for startup or /health. API_TRE_TIMEOUT (seconds per HTTP\noperation, default 10) and API_TRE_WORKERS (default 8) control adapter fan-out;\nAPI_CORS_ORIGINS (comma-separated, default http://localhost:3000) allows the UI\norigin. Use an exclusive SERVER_OUT directory; see analysis_service's\nconcurrency and demo-versus-secure-deployment notes. Variable names are\ncanonical (snp_rs001), never local column names; requests carry variable\nnames, never participant data. Response shapes: server/schemas.py, exported to\ndocs/schemas/ and served at /openapi.json.\n",
+    "title": "Heimdall federated analysis API",
+    "description": "Heimdall HTTP API -- the contract the researcher UI (frontend/) talks to.\n\n    SERVER_OUT=server/api_out uvicorn server.api:app --port 8500 --workers 1\n\nStart mock TREs separately with `python scripts/dev_tres.py`. Neither TREs nor\nFLARE are required for startup or /health. API_TRE_TIMEOUT (seconds per HTTP\noperation, default 10) and API_TRE_WORKERS (default 8) control adapter fan-out;\nAPI_CORS_ORIGINS (comma-separated, default http://localhost:3000) allows the UI\norigin. Use an exclusive SERVER_OUT directory; see analysis_service's\nconcurrency and demo-versus-secure-deployment notes. Variable names are\ncanonical (snp_rs001), never local column names; requests carry variable\nnames, never participant data. Response shapes: server/schemas.py, exported to\ndocs/schemas/ and served at /openapi.json.\n",
     "version": "0.2.0"
   },
   "paths": {

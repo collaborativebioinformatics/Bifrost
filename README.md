@@ -1,11 +1,13 @@
-# Bifrost
+# Heimdall
 
-![Bifrost Logo](docs/bifrost.svg)
+![Heimdall Logo](docs/heimdall.svg)
+
+*Named after the watchman of the gods, who guards the bridge Bifrost: he sees a hundred leagues, hears the grass grow, and lets nothing cross without his say. Here he stands between isolated TREs so analyses can cross while the data never does.*
 
  
 Analyse data across research environments without moving individual records.
 
-Calculate allele frequencies or fit linear regression across participating sites, with disclosure checks before results are released. Each Trusted Research Environment (TRE) computes behind its own API; Bifrost combines permitted aggregates with NVIDIA FLARE.
+Calculate allele frequencies or fit linear regression across participating sites, with disclosure checks before results are released. Each Trusted Research Environment (TRE) computes behind its own API; Heimdall combines permitted aggregates with NVIDIA FLARE.
 
 ![Cross-TRE federated analysis flowchart](docs/architecture/flowchart_drawio.svg)
 

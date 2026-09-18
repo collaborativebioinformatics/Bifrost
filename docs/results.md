@@ -1,6 +1,6 @@
 # Results
 
-Measured output from Bifrost. Summarised in the root [README](../README.md#status); this file holds the full figures.
+Measured output from Heimdall. Summarised in the root [README](../README.md#status); this file holds the full figures.
 
 Synthetic cohort: 30 000 rows, 20 SNPs, age/sex/BMI/LDL, outcome SBP; split non-IID over three sites with **different column names and different APIs** (hunt 14 892 · gefion 8 953 · brev 6 155; per-site allele-frequency drift and age skew). All numbers below are from the real federation (`local_federation.sh`), 2026-09-17.
 
