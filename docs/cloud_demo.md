@@ -55,7 +55,31 @@ sbatch --export=TRE_ID=gefion,KIT=$PWD/.remote/gefion scripts/slurm_site.sbatch 
 
 Needs outbound TCP from the compute node to `<DNS>:8002` (`nc -zv <DNS> 8002`). If Gefion has no egress, run `gefion` on the laptop as a third terminal instead — the demo still shows three heterogeneous APIs behind one server.
 
-## 4. Run the analyses (AWS)
+## 4. Site on HUNT Cloud (optional)
+
+HUNT Cloud opens no outbound connection by default. The data space leader files a network-opening request with HUNT Cloud support ([lab orders → network opening](https://docs.hdc.ntnu.no/administer-science/service-desk/lab-orders#network-opening)) naming the address and port the client will dial: `<DNS>:8002`, TLS. The security-group rule from section 1 already admits the connection on the server side; restrict it to HUNT Cloud's egress address once that is known.
+
+In the HUNT Cloud lab, the same flow as Gefion (the kit holds only certificates, so the host needs a checkout too):
+
+```sh
+git clone https://github.com/collaborativebioinformatics/Bifrost.git && cd Bifrost
+conda create -n heimdall python=3.12 && conda activate heimdall      # or a venv as in section 3
+pip install -e ".[dev]" "nvflare==2.9.0"
+scripts/kit_import.sh hunt                 # paste the kit exported in section 1
+scripts/start_site.sh hunt .remote/hunt    # mock TRE + FLARE client, as in section 2
+```
+
+If pasting into the lab terminal is impractical, move `flare/kits/hunt.tgz` through a restricted share instead (for Drive: `gdown <file-id>`), then `mkdir -p .remote && tar -xzf hunt.tgz -C .remote`. The archive holds the client's private key: no open links, and delete the copy afterwards.
+
+Before starting, the handshake can be checked with the kit's own credentials from `.remote/hunt`:
+
+```sh
+openssl s_client -connect <DNS>:8002 -servername <DNS> -CAfile startup/rootCA.pem -cert startup/client.crt -key startup/client.key -alpn h2
+```
+
+If the kit was packed for a name the lab cannot resolve, pass the address it can reach as a third argument, `scripts/start_site.sh hunt .remote/hunt <ip>:8002`; that patches a copy of the kit rather than `/etc/hosts`. To run only the FLARE client, without the restart loop: `cd .remote/hunt && bash startup/sub_start.sh --once` (jobs then have no mock TRE to query).
+
+## 5. Run the analyses (AWS)
 
 ```sh
 cd ~/Bifrost
@@ -67,7 +91,7 @@ cd ~/Bifrost
 
 Each run prints coverage (`2/3 sites, missing ['gefion']` while Gefion is not up), the verify table against ground truth and the overseer queue. Audit trails are on each client host in `audit/<tre_id>/audit.jsonl`; server decisions in `server/out/release_log.jsonl` on AWS.
 
-## 5. Stop
+## 6. Stop
 
 Ctrl-C in each site terminal; on AWS `(cd flare/workspace/federated_apis/prod_00/$DNS && bash startup/stop_fl.sh)`.
 
