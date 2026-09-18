@@ -33,10 +33,10 @@ class LinregExecutor(Executor):
             if task_name == "linreg_init":
                 self._spec = AnalysisSpec.model_validate(shareable["spec"])
                 result = registry.load(tre_id).run(self._spec)
-                if "_linreg" not in result.stats or "gram" not in result.stats["_linreg"]:
+                if "_linreg" not in result.stats or result.stats["_linreg"].gram is None:
                     self.log_warning(fl_ctx, f"{tre_id}: nothing releasable ({result.rejected}); not joining")
                     return make_reply(ReturnCode.EXECUTION_EXCEPTION)
-                self._gram = result.stats["_linreg"]["gram"]
+                self._gram = result.stats["_linreg"].gram.model_dump()
                 reply = Shareable()
                 reply["moments"] = linreg.moments(self._gram)
                 self.log_info(fl_ctx, f"{tre_id}: joined fed_linreg with n={result.n}")

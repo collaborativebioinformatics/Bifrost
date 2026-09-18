@@ -55,7 +55,7 @@ def _deviation(grams, scaling, lr, steps, rounds) -> float:
 
 @pytest.fixture(scope="module")
 def grams(adapters):
-    return [a.run(SPEC).stats["_linreg"]["gram"] for a in adapters.values()]
+    return [a.run(SPEC).stats["_linreg"].gram.model_dump() for a in adapters.values()]
 
 
 @pytest.fixture(scope="module")

@@ -20,6 +20,8 @@ import sys
 import time
 from pathlib import Path
 
+from server.schemas import MergedResult, ReleasedResult
+
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -51,8 +53,8 @@ def _now() -> str:
 
 
 def _releasable(merged: dict) -> dict:
-    """What actually leaves: strip per-site contributions (server-internal)."""
-    return {k: v for k, v in merged.items() if k != "contributions"}
+    """What actually leaves: the ReleasedResult projection (no per-site contributions)."""
+    return ReleasedResult.model_validate({k: v for k, v in merged.items() if k != "contributions"}).model_dump(exclude_none=True)
 
 
 def log_release(spec: dict, merged: dict, check: dict, decision: str, note: str = "", by: str = "auto") -> None:
@@ -67,7 +69,9 @@ def log_release(spec: dict, merged: dict, check: dict, decision: str, note: str 
 
 
 def record(spec: dict, merged: dict, check: dict) -> Path:
-    """Called by the FLARE controller after the disclosure check. Returns the run dir."""
+    """Called by the FLARE controller / HTTP API after the disclosure check. Returns the run dir.
+    The merged result must satisfy the MergedResult contract; a shape drift fails here, loudly."""
+    merged = MergedResult.model_validate(merged).model_dump(exclude_none=True)
     d = out_dir() / (merged.get("spec_hash") or "unknown")
     d.mkdir(parents=True, exist_ok=True)
     (d / "spec.json").write_text(json.dumps(spec, indent=2))
@@ -85,18 +89,19 @@ def record(spec: dict, merged: dict, check: dict) -> Path:
     return d
 
 
-def decide(spec_hash: str, approve: bool, note: str, by: str) -> None:
+def decide(spec_hash: str, approve: bool, note: str, by: str) -> Path:
+    """Approve or reject a queued result. Raises KeyError if it is not queued."""
     q = _load_queue()
     item = next((i for i in q if i["spec_hash"] == spec_hash), None)
     if item is None:
-        sys.exit(f"{spec_hash}: not in queue")
+        raise KeyError(f"{spec_hash}: not in queue")
     d = Path(item["dir"])
     spec, merged, check = (json.loads((d / f).read_text()) for f in ("spec.json", "result.json", "check.json"))
     if approve:
         (d / "released.json").write_text(json.dumps(_releasable(merged), indent=2))
     log_release(spec, merged, check, "RELEASED" if approve else "REJECTED", note, by)
     _save_queue([i for i in q if i["spec_hash"] != spec_hash])
-    print(f"{spec_hash}: {'APPROVED -> ' + str(d / 'released.json') if approve else 'REJECTED'}")
+    return d
 
 
 def main() -> None:
@@ -121,7 +126,11 @@ def main() -> None:
             sys.exit("not in queue")
         print((Path(item["dir"]) / "result.json").read_text())
     else:
-        decide(a.spec_hash, a.cmd == "approve", a.note, a.by)
+        try:
+            d = decide(a.spec_hash, a.cmd == "approve", a.note, a.by)
+        except KeyError as e:
+            sys.exit(str(e))
+        print(f"{a.spec_hash}: {'APPROVED -> ' + str(d / 'released.json') if a.cmd == 'approve' else 'REJECTED'}")
 
 
 if __name__ == "__main__":

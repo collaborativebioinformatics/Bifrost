@@ -333,17 +333,17 @@ def test_malformed_gram_is_isolated(api, monkeypatch, sites, malformation):
         if tre_id == bad_site:
             def malformed(spec):
                 result = run(spec)
-                gram = result.stats["_linreg"]["gram"]
+                gram = result.stats["_linreg"].gram  # mutate after validation, like a buggy adapter would
                 if malformation == "shape":
-                    gram["matrix"] = [[1, 2], [3, 4]]
+                    gram.matrix = [[1, 2], [3, 4]]
                 elif malformation == "ragged":
-                    gram["matrix"][0].pop()
+                    gram.matrix[0].pop()
                 elif malformation == "nonnumeric":
-                    gram["matrix"][0][0] = "private invalid value"
+                    gram.matrix[0][0] = "private invalid value"
                 elif malformation == "columns":
-                    gram["cols"] = list(reversed(gram["cols"]))
+                    gram.cols = list(reversed(gram.cols))
                 else:
-                    gram["matrix"][0][0] = float("nan")
+                    gram.matrix[0][0] = float("nan")
                 return result
             adapter.run = malformed
         return adapter

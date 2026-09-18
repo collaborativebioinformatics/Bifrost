@@ -22,7 +22,8 @@ def test_combine_is_associative_and_reports_coverage():
     a, b, c = _r("a", 100, 80, 18, 2), _r("b", 50, 40, 8, 2), _r("c", 10, 6, 3, 1)
     m_all = combine([a, b, c], ["a", "b", "c"])
     m_relay = combine([a, b], ["a", "b"])  # a regional relay pre-merges a+b ...
-    m_root = combine([AggregateResult("relay", m_relay["n"], stats={"snp_x": m_relay["stats"]["snp_x"] | {}}, region="r"), c], ["relay", "c"])
+    relay_stats = {k: v for k, v in m_relay["stats"]["snp_x"].items() if k in ("genotype_counts", "allele_counts")}
+    m_root = combine([AggregateResult(tre_id="relay", n=m_relay["n"], stats={"snp_x": relay_stats}, region="r"), c], ["relay", "c"])
     assert m_all["stats"]["snp_x"]["allele_freq"] == m_root["stats"]["snp_x"]["allele_freq"]
     assert m_all["coverage"] == "3/3 sites" and m_all["sites_missing"] == []
     m_part = combine([a, b], ["a", "b", "c"])
@@ -68,5 +69,5 @@ def test_overseer_queue_roundtrip(tmp_path, monkeypatch):
     assert overseer_queue._load_queue() == []
     log = [json.loads(l) for l in overseer_queue.release_log_path().read_text().splitlines()]
     assert [e["decision"] for e in log] == ["QUEUED", "RELEASED"] and log[-1]["by"] == "tester"
-    with pytest.raises(SystemExit):
+    with pytest.raises(KeyError):
         overseer_queue.decide("abc", approve=False, note="", by="x")

@@ -30,7 +30,7 @@ def combine(results: Iterable[AggregateResult], expected_sites: list[str] | None
     }
     variables = sorted({v for r in results for v in r.stats})
     for v in variables:
-        parts = {r.tre_id: r.stats[v] for r in results if v in r.stats}
+        parts = {r.tre_id: r.stats[v].present() for r in results if v in r.stats}
         agg: dict = {}
         if parts and all("genotype_counts" in p for p in parts.values()):
             levels = sorted({lvl for p in parts.values() for lvl in p["genotype_counts"]})
