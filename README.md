@@ -140,6 +140,40 @@ The intended final-demo topology is one client on Gefion, one on NextCloud, and 
 
 </details>
 
+### Real-world TREs
+
+#### HUNT Cloud
+
+<details>
+
+Network opening request forms containing the IP:port address of the server should be sent to HUNT Cloud support by the data space leader (https://docs.hdc.ntnu.no/administer-science/service-desk/lab-orders#network-opening). 
+The server must be reachable from the HUNT Cloud network, and the HUNT Cloud TRE must be able to reach the server.
+The server host must allow out/inbound connections to HUNT Cloud on the corresponding port (TLS, 129.241.176.121:8002), configurable e.g., on AWS. 
+Client kits and dependencies must be installed on the HUNT Cloud, e.g.:
+
+```sh
+conda create -n heimdall python=3.12
+conda activate heimdall
+pip install nvflare==2.9.0
+
+# fetch client kit files
+gdown https://drive.google.com/uc?id=whatever
+unzip site-1.zip
+cd site-1/startup
+
+# check the connection to the server using credentials
+openssl s_client -connect 16.170.143.132:8002 -servername 16.170.143.132 -CAfile rootCA.pem -cert client.crt -key client.key -alpn h2
+
+# modiy /etc/hosts file on client site (if needed)
+grep -q "server1" /etc/hosts || echo "16.170.143.132 server1" | sudo tee -a /etc/hosts;
+
+# change permissions and start the client
+chmod +x *.sh
+./startup/sub_start.sh --once
+```
+
+</details>
+
 ## Technical reference
 
 See the [documentation index](docs/README.md) for reference material, planning history, architecture proposals, and scaling evidence.
