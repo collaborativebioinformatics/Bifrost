@@ -24,3 +24,4 @@ flare/kits/
 *.fam
 *_geno.*
 site*_nordik_sim.*
+.remote/
