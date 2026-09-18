@@ -69,7 +69,7 @@ scripts/kit_import.sh hunt                 # paste the kit exported in section 1
 scripts/start_site.sh hunt .remote/hunt    # mock TRE + FLARE client, as in section 2
 ```
 
-If pasting into the lab terminal is impractical, move `flare/kits/hunt.tgz` through a restricted share instead (for Drive: `gdown <file-id>`), then `tar -xzf hunt.tgz -C .remote`. The archive holds the client's private key: no open links, and delete the copy afterwards.
+If pasting into the lab terminal is impractical, move `flare/kits/hunt.tgz` through a restricted share instead (for Drive: `gdown <file-id>`), then `mkdir -p .remote && tar -xzf hunt.tgz -C .remote`. The archive holds the client's private key: no open links, and delete the copy afterwards.
 
 Before starting, the handshake can be checked with the kit's own credentials from `.remote/hunt`:
 
