@@ -46,7 +46,7 @@ scripts/local_federation.sh down
 The fast suite needs no network. The FLARE simulator suite is marked `slow` and needs `nvflare` installed:
 
 ```sh
-python -m pytest -q -m "not slow"    # 61 tests
+python -m pytest -q -m "not slow"    # 79 tests
 python -m pytest -q -m slow          # 3 tests, ~50 s
 ```
 
@@ -89,7 +89,7 @@ scripts/up.sh --down
 
 Measured on a real local federation (`local_federation.sh`) over a 30,000-row synthetic cohort split non-IID across three sites with different column names and APIs, 2026-09-17. Allele frequencies match pooled ground truth exactly; exact and FedAvg linear regression agree with pooled OLS to 1.7e-11 and 2.2e-11; a killed client yields `2/3 sites` with exact output for reporting sites; aggregation stays exact at 3, 10, 50, and 100 simulated sites.
 
-The recorded run reports a coefficient residual of ≈ 2.4e-2 with `--local-steps 5` on this non-IID data; its full configuration (learning rate, rounds) was not recorded alongside the figure. The evidence is synthetic and local: nobody has run clients on remote Gefion or NextCloud hosts.
+Federated averaging with `--local-steps 5` does not reach pooled OLS on this non-IID data: holding learning rate and round count fixed, one local step converges while five leaves a residual of ~2.3e-2 that is unchanged from 10 to 200 rounds ([docs/local_steps_controlled.md](docs/local_steps_controlled.md)). The evidence is synthetic and local: nobody has run clients on remote Gefion or NextCloud hosts.
 
 **Full figures, scenario detail, caveats, and scaling plot: [docs/results.md](docs/results.md).**
 

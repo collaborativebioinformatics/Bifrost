@@ -5,6 +5,7 @@
 - [Results](results.md) holds the measured output: allele frequency, linear regression, suppression and straggler scenarios, and the scaling figures. The root [README](../README.md#results) carries only the summary.
 - [Variable dictionary](variables.md) describes the implemented canonical variables and the mock-TRE local names. Those names are synthetic and are not schemas agreed with real TREs.
 - [Demo specs](demo_specs.md) describes the example analysis specifications in `spec/examples/` and their documented limits.
+- [Controlled local-steps comparison](local_steps_controlled.md) records the federated-averaging measurements that vary only `local_steps`, with the environment they were taken in and what they do and do not establish.
 
 ## Planning and architecture
 
