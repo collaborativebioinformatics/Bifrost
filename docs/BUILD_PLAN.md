@@ -28,7 +28,7 @@ Use cases (from README):
 - **Orchestrator**: NVIDIA FLARE server outside the TREs. The team may evaluate `nvflare provision` and a `project.yml` for the hackathon setup to ease a later production transition; this has not been validated and is not a guaranteed configuration-only switch.
 - **One FLARE client per TRE** inside a TRE container, connecting outward over mutual-TLS gRPC.
 - **Adapter pattern**: one adapter per TRE behind a common interface. A FLARE executor would call the adapter, which would speak the TRE's native API.
-- **Harmonisation map**: proposed `harmonisation/canonical.yaml` maps canonical variables to local columns per TRE. The current variable-dictionary handoff is [docs/variables.md](docs/variables.md).
+- **Harmonisation map**: proposed `harmonisation/canonical.yaml` maps canonical variables to local columns per TRE. The current variable-dictionary handoff is [variables.md](variables.md).
 - **Safe-output filter** inside each TRE before results reach the FLARE client.
 - **Server-side disclosure check** on combined results; a flagged result could enter an overseer queue before release.
 - **Audit log** per TRE, proposed as `audit.jsonl`.
@@ -79,8 +79,9 @@ The following is a sketch. Except for the existing documentation and diagram fil
 
 ```
 Bifrost/
-  README.md, flowchart_drawio.svg
-  docs/  variables.md, demo_specs.md
+  README.md
+  docs/  BUILD_PLAN.md, variables.md, demo_specs.md
+    architecture/  flowchart_drawio.svg
   sites.yaml                                  # the only place sites are listed
   docker-compose.yml                          # generated
   data/generate.py                            # synthetic genotypes + phenotypes, N splits, ground truth
@@ -149,8 +150,8 @@ Bifrost/
 ## Open decisions
 
 1. Confirm team roles and named owners. The `Adapter dev` role is provisional and may overlap with Lead or Sysadmin work.
-2. Confirm Brev's intended role or roles: M0 proposes it as a simulated data site, while the [README](README.md) describes it as a possible aggregation-server location. Define the required separation if both are retained.
-3. Agree the variable contract and per-TRE aliases in [docs/variables.md](docs/variables.md) before implementing the harmonisation map.
+2. Confirm Brev's intended role or roles: M0 proposes it as a simulated data site, while the [README](../README.md) describes it as a possible aggregation-server location. Define the required separation if both are retained.
+3. Agree the variable contract and per-TRE aliases in [variables.md](variables.md) before implementing the harmonisation map.
 4. Review Espen's suggested resources before settling interfaces: NVIDIA FLARE (<https://github.com/NVIDIA/NVFlare>), FedGen (<https://github.com/collaborativebioinformatics/FedGen>), [`federated_architecture`](https://github.com/cmig-research-group/federated_architecture), and its [pinned `regenie_on_hunt` example](https://github.com/cmig-research-group/federated_architecture/tree/cd2863afedd3d6a4adb93bdd144e201f15477366/examples/regenie_on_hunt). Their contents have not been assessed in this draft.
 5. Resolve whether the adapter contract is statistics-only (`AggregateResult`) or must also carry gradients or parameters for M4. The answer determines whether M4 can use the same adapters unchanged.
 

@@ -30,15 +30,13 @@ Implemented:
 
 A real (non-simulator) FLARE federation runs two verified ways: `scripts/local_federation.sh` with separate processes over mTLS, and Docker via `scripts/provision.sh && scripts/up.sh --flare`; both support the example specs, overseer flow, and partial-site coverage. The Next.js UI is implemented in `frontend/`; the Python API service exposing its documented contract remains separate. Not yet run: clients on remote hosts (Gefion / NextCloud).
 
-Known discrepancies — do not treat these as existing:
+`docs/architecture/flowchart.drawio` is the editable source for the implemented-flow overview. When changing that overview, regenerate both `docs/architecture/flowchart_drawio.svg` and `docs/architecture/flowchart.png` from it.
 
-- `flowchart.drawio` does not match the rendered `flowchart_drawio.svg`.
-
-Planning documents: [BUILD_PLAN.md](BUILD_PLAN.md) (milestone-based; M0–M6 done) and [docs/variables.md](docs/variables.md) (documents the implemented variables; the local column names in it are invented for the mock TREs and not agreed with any real site).
+Planning documents: [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md) (milestone-based; M0–M6 done) and [docs/variables.md](docs/variables.md) (documents the implemented variables; the local column names in it are invented for the mock TREs and not agreed with any real site). See [docs/README.md](docs/README.md) for the documentation index.
 
 ## Plans and code disagree often here
 
-`README.md`, `BUILD_PLAN.md`, and `docs/variables.md` describe intended behavior, some of it unbuilt. When code and documentation disagree, identify the discrepancy rather than silently following one: use the code to establish current behavior, and confirm intended behavior before changing it. A plan may legitimately describe the change being requested.
+`README.md`, `docs/BUILD_PLAN.md`, and `docs/variables.md` describe intended behavior, some of it unbuilt. When code and documentation disagree, identify the discrepancy rather than silently following one: use the code to establish current behavior, and confirm intended behavior before changing it. A plan may legitimately describe the change being requested.
 
 Confirm a path, command, module, or function exists before referencing it — the status table above is a snapshot and the repository moves fast. Update it in the same change that makes it wrong.
 

@@ -18,3 +18,12 @@ flare/jobs/
 flare/kits/
 .local_fed/
 .next
+<<<<<<< HEAD
+=======
+*.csv
+*.bed
+*.bim
+*.fam
+*_geno.*
+site*_nordik_sim.*
+>>>>>>> 1589cd5ef94e40e0c3866ba2b7a45973a101a81c
