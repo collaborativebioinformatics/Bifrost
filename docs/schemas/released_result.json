@@ -1,0 +1,520 @@
+{
+  "$defs": {
+    "AlleleCounts": {
+      "additionalProperties": false,
+      "properties": {
+        "minor": {
+          "minimum": 0,
+          "title": "Minor",
+          "type": "integer"
+        },
+        "major": {
+          "minimum": 0,
+          "title": "Major",
+          "type": "integer"
+        },
+        "n_alleles": {
+          "minimum": 0,
+          "title": "N Alleles",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "minor",
+        "major",
+        "n_alleles"
+      ],
+      "title": "AlleleCounts",
+      "type": "object"
+    },
+    "FedAvgRound": {
+      "additionalProperties": false,
+      "properties": {
+        "round": {
+          "title": "Round",
+          "type": "integer"
+        },
+        "sites": {
+          "title": "Sites",
+          "type": "integer"
+        },
+        "max_delta": {
+          "title": "Max Delta",
+          "type": "number"
+        },
+        "coef": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Coef",
+          "type": "object"
+        }
+      },
+      "required": [
+        "round",
+        "sites",
+        "max_delta",
+        "coef"
+      ],
+      "title": "FedAvgRound",
+      "type": "object"
+    },
+    "MergedVariableStats": {
+      "additionalProperties": false,
+      "description": "One canonical variable after the associative merge. Same allow-list as\nVariableStats plus the derived quantities the server is allowed to publish.",
+      "properties": {
+        "genotype_counts": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Genotype Counts"
+        },
+        "histogram": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Histogram"
+        },
+        "allele_counts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AlleleCounts"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "allele_freq": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Allele Freq"
+        },
+        "allele_freq_sites": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Allele Freq Sites"
+        },
+        "count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Count"
+        },
+        "sum": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sum"
+        },
+        "sum_sq": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sum Sq"
+        },
+        "mean": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mean"
+        },
+        "var": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Var"
+        },
+        "min": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min"
+        },
+        "max": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max"
+        },
+        "ols": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OLS"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "n": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "N"
+        },
+        "history": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/FedAvgRound"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "History"
+        }
+      },
+      "title": "MergedVariableStats",
+      "type": "object"
+    },
+    "Method": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "exact",
+            "fedavg"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "rounds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rounds"
+        },
+        "local_steps": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Local Steps"
+        },
+        "lr": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lr"
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "title": "Method",
+      "type": "object"
+    },
+    "OLS": {
+      "additionalProperties": false,
+      "properties": {
+        "outcome": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Outcome"
+        },
+        "coef": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Coef"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        }
+      },
+      "title": "OLS",
+      "type": "object"
+    },
+    "Timing": {
+      "additionalProperties": false,
+      "properties": {
+        "round_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Round S"
+        },
+        "merge_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Merge S"
+        }
+      },
+      "title": "Timing",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "What leaves the server after the disclosure check / overseer approval.",
+  "properties": {
+    "spec_hash": {
+      "title": "Spec Hash",
+      "type": "string"
+    },
+    "coverage": {
+      "title": "Coverage",
+      "type": "string"
+    },
+    "sites_expected": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Sites Expected",
+      "type": "array"
+    },
+    "sites_reported": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Sites Reported",
+      "type": "array"
+    },
+    "sites_missing": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Sites Missing",
+      "type": "array"
+    },
+    "sites_failed": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Sites Failed",
+      "type": "object"
+    },
+    "n": {
+      "minimum": 0,
+      "title": "N",
+      "type": "integer"
+    },
+    "n_per_site": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "N Per Site",
+      "type": "object"
+    },
+    "region_per_site": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Region Per Site",
+      "type": "object"
+    },
+    "rejected_per_site": {
+      "additionalProperties": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "title": "Rejected Per Site",
+      "type": "object"
+    },
+    "stats": {
+      "additionalProperties": {
+        "$ref": "#/$defs/MergedVariableStats"
+      },
+      "title": "Stats",
+      "type": "object"
+    },
+    "method": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Method"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "timing": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timing"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "sites_missing_rounds": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sites Missing Rounds"
+    }
+  },
+  "required": [
+    "spec_hash",
+    "coverage",
+    "sites_expected",
+    "sites_reported",
+    "sites_missing",
+    "n",
+    "n_per_site",
+    "stats"
+  ],
+  "title": "ReleasedResult",
+  "type": "object"
+}

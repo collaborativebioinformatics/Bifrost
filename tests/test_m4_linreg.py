@@ -14,7 +14,7 @@ SPEC = AnalysisSpec.model_validate_json((ROOT / "spec" / "examples" / "fed_linre
 
 @pytest.fixture(scope="module")
 def grams(adapters):
-    out = [a.run(SPEC).stats["_linreg"]["gram"] for a in adapters.values()]
+    out = [a.run(SPEC).stats["_linreg"].gram.model_dump() for a in adapters.values()]
     return out
 
 

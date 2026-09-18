@@ -1,0 +1,1702 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Bifrost federated analysis API",
+    "description": "Bifrost HTTP API -- the contract the researcher UI (frontend/) talks to.\n\n    SERVER_OUT=server/api_out uvicorn server.api:app --port 8500 --workers 1\n\nStart mock TREs separately with `python scripts/dev_tres.py`. Neither TREs nor\nFLARE are required for startup or /health. API_TRE_TIMEOUT (seconds per HTTP\noperation, default 10) and API_TRE_WORKERS (default 8) control adapter fan-out;\nAPI_CORS_ORIGINS (comma-separated, default http://localhost:3000) allows the UI\norigin. Use an exclusive SERVER_OUT directory; see analysis_service's\nconcurrency and demo-versus-secure-deployment notes. Variable names are\ncanonical (snp_rs001), never local column names; requests carry variable\nnames, never participant data. Response shapes: server/schemas.py, exported to\ndocs/schemas/ and served at /openapi.json.\n",
+    "version": "0.2.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/allele-frequency": {
+      "get": {
+        "summary": "Allele Frequency",
+        "operationId": "allele_frequency_allele_frequency_get",
+        "parameters": [
+          {
+            "name": "variant",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Variant"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "min_cell_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 5,
+              "default": 5,
+              "title": "Min Cell Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/linear-regression": {
+      "post": {
+        "summary": "Linear Regression",
+        "operationId": "linear_regression_linear_regression_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegressionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metadata": {
+      "get": {
+        "summary": "Metadata",
+        "operationId": "metadata_metadata_get",
+        "parameters": [
+          {
+            "name": "probe",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "probe each TRE's /health (2 s timeout)",
+              "default": true,
+              "title": "Probe"
+            },
+            "description": "probe each TRE's /health (2 s timeout)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Metadata"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/examples/{name}": {
+      "get": {
+        "summary": "Example",
+        "operationId": "example_examples__name__get",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/run": {
+      "post": {
+        "summary": "Submit Run",
+        "operationId": "submit_run_run_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/run/{run_id}": {
+      "get": {
+        "summary": "Run Status",
+        "operationId": "run_status_run__run_id__get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/overseer": {
+      "get": {
+        "summary": "Overseer",
+        "operationId": "overseer_overseer_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverseerQueue"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/overseer/{spec_hash}/{decision}": {
+      "post": {
+        "summary": "Overseer Decide",
+        "operationId": "overseer_decide_overseer__spec_hash___decision__post",
+        "parameters": [
+          {
+            "name": "spec_hash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Spec Hash"
+            }
+          },
+          {
+            "name": "decision",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Decision"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/OverseerDecision"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit": {
+      "get": {
+        "summary": "Audit",
+        "description": "Per-site audit lines (newest first). AUDIT_ROOT/<tre_id>/audit.jsonl, default <repo>/audit/;\nAUDIT_DIR (single directory) is honoured for the in-process demo layout.",
+        "operationId": "audit_audit_get",
+        "parameters": [
+          {
+            "name": "spec_hash",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Spec Hash"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 5000,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditLog"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AlleleCounts": {
+        "properties": {
+          "minor": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Minor"
+          },
+          "major": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Major"
+          },
+          "n_alleles": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "N Alleles"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "minor",
+          "major",
+          "n_alleles"
+        ],
+        "title": "AlleleCounts"
+      },
+      "AnalysisResponse": {
+        "properties": {
+          "spec_hash": {
+            "type": "string",
+            "title": "Spec Hash"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "flagged",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "OK",
+              "FLAGGED"
+            ],
+            "title": "Decision"
+          },
+          "reasons": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "min_sites",
+                "site_suppression",
+                "k_anon",
+                "dominance",
+                "differencing",
+                "analysis",
+                "disclosure_review_required"
+              ]
+            },
+            "type": "array",
+            "title": "Reasons"
+          },
+          "sites_expected": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sites Expected"
+          },
+          "sites_reported": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sites Reported"
+          },
+          "sites_missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sites Missing"
+          },
+          "sites_failed": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Sites Failed"
+          },
+          "coverage": {
+            "type": "string",
+            "title": "Coverage"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReleasedResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "spec_hash",
+          "status",
+          "decision",
+          "reasons",
+          "sites_expected",
+          "sites_reported",
+          "sites_missing",
+          "sites_failed",
+          "coverage"
+        ],
+        "title": "AnalysisResponse",
+        "description": "Response of the analysis endpoints. `result` is present only when the\ndisclosure check passed; flagged runs wait in the overseer queue."
+      },
+      "AuditEntry": {
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp"
+          },
+          "tre_id": {
+            "type": "string",
+            "title": "Tre Id"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "spec_hash": {
+            "type": "string",
+            "title": "Spec Hash"
+          },
+          "analysis_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analysis Type"
+          },
+          "variables": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Variables"
+          },
+          "filters": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Filters"
+          },
+          "min_cell_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Cell Size"
+          },
+          "n": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N"
+          },
+          "released": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Released"
+          },
+          "rejected": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Rejected"
+          },
+          "decision": {
+            "type": "string",
+            "title": "Decision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "timestamp",
+          "tre_id",
+          "spec_hash",
+          "decision"
+        ],
+        "title": "AuditEntry"
+      },
+      "AuditLog": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AuditEntry"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "AuditLog"
+      },
+      "FedAvgRound": {
+        "properties": {
+          "round": {
+            "type": "integer",
+            "title": "Round"
+          },
+          "sites": {
+            "type": "integer",
+            "title": "Sites"
+          },
+          "max_delta": {
+            "type": "number",
+            "title": "Max Delta"
+          },
+          "coef": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Coef"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "round",
+          "sites",
+          "max_delta",
+          "coef"
+        ],
+        "title": "FedAvgRound"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "MergedVariableStats": {
+        "properties": {
+          "genotype_counts": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Genotype Counts"
+          },
+          "histogram": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Histogram"
+          },
+          "allele_counts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AlleleCounts"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "allele_freq": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allele Freq"
+          },
+          "allele_freq_sites": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allele Freq Sites"
+          },
+          "count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count"
+          },
+          "sum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sum"
+          },
+          "sum_sq": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sum Sq"
+          },
+          "mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean"
+          },
+          "var": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Var"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "ols": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OLS"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "n": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N"
+          },
+          "history": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/FedAvgRound"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "History"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "MergedVariableStats",
+        "description": "One canonical variable after the associative merge. Same allow-list as\nVariableStats plus the derived quantities the server is allowed to publish."
+      },
+      "Metadata": {
+        "properties": {
+          "variables": {
+            "items": {
+              "$ref": "#/components/schemas/VariableInfo"
+            },
+            "type": "array",
+            "title": "Variables"
+          },
+          "projects": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectInfo"
+            },
+            "type": "array",
+            "title": "Projects"
+          },
+          "examples": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Examples"
+          },
+          "sites": {
+            "items": {
+              "$ref": "#/components/schemas/SiteInfo"
+            },
+            "type": "array",
+            "title": "Sites"
+          },
+          "analysis_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Analysis Types"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "variables",
+          "projects",
+          "examples",
+          "sites",
+          "analysis_types"
+        ],
+        "title": "Metadata"
+      },
+      "Method": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "exact",
+              "fedavg"
+            ],
+            "title": "Mode"
+          },
+          "rounds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rounds"
+          },
+          "local_steps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Steps"
+          },
+          "lr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lr"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "mode"
+        ],
+        "title": "Method"
+      },
+      "OLS": {
+        "properties": {
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "coef": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coef"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OLS"
+      },
+      "OverseerDecision": {
+        "properties": {
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "default": ""
+          },
+          "by": {
+            "type": "string",
+            "title": "By",
+            "default": "overseer-ui"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OverseerDecision"
+      },
+      "OverseerItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "spec_hash": {
+            "type": "string",
+            "title": "Spec Hash"
+          },
+          "queued": {
+            "type": "string",
+            "title": "Queued"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "analysis_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analysis Type"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reasons"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "spec_hash",
+          "queued",
+          "reasons"
+        ],
+        "title": "OverseerItem"
+      },
+      "OverseerQueue": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OverseerItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "OverseerQueue"
+      },
+      "ProjectInfo": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "ProjectInfo"
+      },
+      "RegressionRequest": {
+        "properties": {
+          "features": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Features"
+          },
+          "target": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Target"
+          },
+          "project_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Project Id"
+          },
+          "filters": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Filters"
+          },
+          "min_cell_size": {
+            "type": "integer",
+            "minimum": 5.0,
+            "title": "Min Cell Size",
+            "default": 5
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "features",
+          "target",
+          "project_id"
+        ],
+        "title": "RegressionRequest",
+        "description": "Convenience body for POST /linear-regression (same semantics as an AnalysisSpec)."
+      },
+      "ReleasedResult": {
+        "properties": {
+          "spec_hash": {
+            "type": "string",
+            "title": "Spec Hash"
+          },
+          "coverage": {
+            "type": "string",
+            "title": "Coverage"
+          },
+          "sites_expected": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sites Expected"
+          },
+          "sites_reported": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sites Reported"
+          },
+          "sites_missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sites Missing"
+          },
+          "sites_failed": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Sites Failed"
+          },
+          "n": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "N"
+          },
+          "n_per_site": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "N Per Site"
+          },
+          "region_per_site": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Region Per Site"
+          },
+          "rejected_per_site": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Rejected Per Site"
+          },
+          "stats": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/MergedVariableStats"
+            },
+            "type": "object",
+            "title": "Stats"
+          },
+          "method": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Method"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "timing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timing"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sites_missing_rounds": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sites Missing Rounds"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "spec_hash",
+          "coverage",
+          "sites_expected",
+          "sites_reported",
+          "sites_missing",
+          "n",
+          "n_per_site",
+          "stats"
+        ],
+        "title": "ReleasedResult",
+        "description": "What leaves the server after the disclosure check / overseer approval."
+      },
+      "RunRequest": {
+        "properties": {
+          "analysis_type": {
+            "type": "string",
+            "enum": [
+              "allele_freq",
+              "fed_stats",
+              "fed_linreg"
+            ],
+            "title": "Analysis Type"
+          },
+          "variables": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Variables"
+          },
+          "filters": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Filters"
+          },
+          "min_cell_size": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Min Cell Size",
+            "default": 5
+          },
+          "project_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Project Id"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "fedavg_rounds": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Fedavg Rounds",
+            "description": "fed_linreg only: 0 = exact (summed Gram), >0 = FedAvg rounds",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "analysis_type",
+          "variables",
+          "project_id"
+        ],
+        "title": "RunRequest",
+        "description": "POST /run body: an AnalysisSpec plus how to fit a fed_linreg."
+      },
+      "RunStatus": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "flagged",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "submitted": {
+            "type": "string",
+            "title": "Submitted"
+          },
+          "finished": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished"
+          },
+          "spec_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spec Hash"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "OK",
+                  "FLAGGED"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision"
+          },
+          "reasons": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "min_sites",
+                "site_suppression",
+                "k_anon",
+                "dominance",
+                "differencing",
+                "analysis",
+                "disclosure_review_required"
+              ]
+            },
+            "type": "array",
+            "title": "Reasons"
+          },
+          "sites_expected": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sites Expected"
+          },
+          "sites_reported": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sites Reported"
+          },
+          "sites_missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sites Missing"
+          },
+          "sites_failed": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Sites Failed"
+          },
+          "coverage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverage"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReleasedResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "status",
+          "submitted"
+        ],
+        "title": "RunStatus"
+      },
+      "SiteInfo": {
+        "properties": {
+          "tre_id": {
+            "type": "string",
+            "title": "Tre Id"
+          },
+          "adapter": {
+            "type": "string",
+            "title": "Adapter"
+          },
+          "region": {
+            "type": "string",
+            "title": "Region"
+          },
+          "online": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Online"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tre_id",
+          "adapter",
+          "region"
+        ],
+        "title": "SiteInfo"
+      },
+      "Timing": {
+        "properties": {
+          "round_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round S"
+          },
+          "merge_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merge S"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Timing"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VariableInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "continuous",
+              "binary",
+              "genotype"
+            ],
+            "title": "Type"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit",
+            "default": ""
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "type"
+        ],
+        "title": "VariableInfo"
+      }
+    }
+  }
+}
