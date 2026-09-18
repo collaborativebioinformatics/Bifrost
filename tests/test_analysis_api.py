@@ -1,5 +1,6 @@
 """Common API integration tests: real adapters/TRE apps, no FLARE or network."""
 import json
+import math
 import subprocess
 import sys
 
@@ -68,6 +69,39 @@ def test_linear_regression_matches_ground_truth(api):
     assert body["result"]["stats"]["_linreg"]["ols"]["coef"] == pytest.approx(GT["ols"]["coef"], abs=1e-6)
 
 
+def test_logistic_regression_matches_ground_truth(api):
+    response = api[0].post("/logistic-regression", json={
+        "features": GT["logreg"]["features"], "target": GT["logreg"]["outcome"], "project_id": PROJECT})
+    assert response.status_code == 200
+    body = assert_safe(response, True)
+    assert body["decision"] == "OK"
+    fit = body["result"]["stats"]["_logreg"]["logreg"]
+    assert fit["coef"] == pytest.approx(GT["logreg"]["coef"], abs=1e-6)
+    assert body["result"]["method"]["mode"] == "newton_raphson"
+    assert 0 < body["result"]["method"]["rounds"] <= 25
+
+
+def test_logistic_regression_respects_rounds_cap(api):
+    """A cap far below convergence still returns 200 with a partial fit -- the
+    caller asked for a bound on server work, not a promise of convergence."""
+    response = api[0].post("/logistic-regression", json={
+        "features": GT["logreg"]["features"], "target": GT["logreg"]["outcome"],
+        "project_id": PROJECT, "rounds": 1})
+    assert response.status_code == 200
+    body = assert_safe(response, True)
+    assert body["result"]["method"]["rounds"] == 1
+    fit = body["result"]["stats"]["_logreg"]["logreg"]["coef"]
+    assert max(abs(fit[k] - GT["logreg"]["coef"][k]) for k in fit) > 1e-6  # not yet converged
+
+
+@pytest.mark.parametrize("rounds", [0, 101])
+def test_logistic_regression_rounds_out_of_bounds(api, rounds):
+    response = api[0].post("/logistic-regression", json={
+        "features": GT["logreg"]["features"], "target": GT["logreg"]["outcome"],
+        "project_id": PROJECT, "rounds": rounds})
+    assert response.status_code == 422 and api[2] == []
+
+
 @pytest.mark.parametrize("analysis", ["allele", "regression"])
 def test_partial_outage(api, sites, analysis):
     client, failed, called = api
@@ -85,6 +119,101 @@ def test_partial_outage(api, sites, analysis):
         expected = sum(GT["site_allele_freq"][s]["snp_rs001"] * GT["n_per_site"][s] for s in reporting)
         expected /= sum(GT["n_per_site"][s] for s in reporting)
         assert body["result"]["stats"]["snp_rs001"]["allele_freq"] == pytest.approx(expected)
+
+
+def test_logistic_regression_site_down_for_whole_request(api, sites):
+    """A site unreachable from the start (fails gating) never enters the Newton
+    rounds; the remaining sites still converge to their own (non-pooled) fit."""
+    client, failed, called = api
+    failed.add(sites[-1]["tre_id"])
+    response = client.post("/logistic-regression", json={
+        "features": GT["logreg"]["features"], "target": GT["logreg"]["outcome"], "project_id": PROJECT})
+    assert response.status_code == 200
+    body = assert_safe(response, True)
+    assert body["decision"] == "OK"
+    assert body["sites_failed"] == {sites[-1]["tre_id"]: "unavailable"}
+    assert set(body["sites_reported"]) == {s["tre_id"] for s in sites} - {sites[-1]["tre_id"]}
+    coef = body["result"]["stats"]["_logreg"]["logreg"]["coef"]
+    assert all(math.isfinite(v) for v in coef.values())
+
+
+def test_logistic_regression_site_fails_mid_rounds(api, sites):
+    """A site that passes the gate but then goes dark partway through Newton's
+    method should not corrupt the run: it's dropped from later rounds' sums and
+    reported in sites_failed, and the fit still converges close to ground truth
+    using the sites that kept answering."""
+    client, failed, called = api
+    bad = sites[-1]["tre_id"]
+    original = registry.load
+    calls = {"n": 0}
+
+    def load(tre_id):
+        if tre_id == bad:
+            calls["n"] += 1
+            if calls["n"] > 1:  # succeeds the init/gating call, fails every round after
+                raise httpx.ConnectError("private TRE connection details")
+        return original(tre_id)
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(registry, "load", load)
+    try:
+        response = client.post("/logistic-regression", json={
+            "features": GT["logreg"]["features"], "target": GT["logreg"]["outcome"], "project_id": PROJECT})
+    finally:
+        monkeypatch.undo()
+    assert response.status_code == 200
+    body = assert_safe(response, True)
+    assert body["decision"] == "OK"
+    assert bad in body["sites_reported"]  # it did gate in successfully
+    assert body["sites_failed"] == {bad: "unavailable"}
+    coef = body["result"]["stats"]["_logreg"]["logreg"]["coef"]
+    assert max(abs(coef[k] - GT["logreg"]["coef"][k]) for k in coef) < 0.5  # close, not exact: 2/3 sites
+
+
+def test_logistic_regression_flagged_when_rounds_lose_sites(api, sites):
+    """Two of three sites gate in and then go dark, so no Newton round ever has the
+    two responders it needs. The run must be flagged rather than released as a
+    zero-round, all-zero fit, and the dark sites must show up in sites_failed."""
+    client, failed, called = api
+    bad = {s["tre_id"] for s in sites[1:]}
+    original = registry.load
+    calls = dict.fromkeys(bad, 0)
+
+    def load(tre_id):
+        if tre_id in bad:
+            calls[tre_id] += 1
+            if calls[tre_id] > 1:  # succeeds the init/gating call, fails every round after
+                raise httpx.ConnectError("private TRE connection details")
+        return original(tre_id)
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(registry, "load", load)
+    try:
+        response = client.post("/logistic-regression", json={
+            "features": GT["logreg"]["features"], "target": GT["logreg"]["outcome"], "project_id": PROJECT})
+    finally:
+        monkeypatch.undo()
+    assert response.status_code == 200
+    body = assert_safe(response)
+    assert body["decision"] == "FLAGGED" and body["reasons"] == ["analysis"]
+    assert body["sites_failed"] == dict.fromkeys(bad, "unavailable")
+
+
+def test_invalid_logreg_target_fails_before_calls(api):
+    response = api[0].post("/logistic-regression", json={
+        "features": ["age", "bmi"], "target": "sbp", "project_id": PROJECT})  # sbp is continuous, not binary
+    assert response.status_code == 422 and api[2] == []
+
+
+def test_logistic_regression_flagged_when_too_few_sites(api, sites):
+    client, failed, _ = api
+    failed.update(s["tre_id"] for s in sites[1:])  # only one site can gate in
+    response = client.post("/logistic-regression", json={
+        "features": GT["logreg"]["features"], "target": GT["logreg"]["outcome"], "project_id": PROJECT})
+    assert response.status_code == 200
+    body = assert_safe(response)
+    assert body["decision"] == "FLAGGED"
+    assert "min_sites" in body["reasons"]
 
 
 def test_single_response_is_flagged_and_queued(api, sites):

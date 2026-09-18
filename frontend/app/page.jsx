@@ -11,12 +11,19 @@ const API_BASE = '/api'
 const staticMetadata = {
   projects: [{ id: 'ncfh-2026-demo' }, { id: 'hackathon-test' }],
   variables: [
-    { name: 'age', type: 'continuous' }, { name: 'sex', type: 'binary' },
-    { name: 'bmi', type: 'continuous' }, { name: 'sbp', type: 'continuous' },
+    { name: 'age', type: 'continuous' }, 
+    { name: 'sex', type: 'binary' },
+    { name: 'bmi', type: 'continuous' }, 
+    { name: 'sbp', type: 'continuous' }, 
+    { name: 'case', type: 'binary' },
     ...Array.from({ length: 20 }, (_, index) => ({ name: `snp_rs${String(index + 1).padStart(3, '0')}`, type: 'genotype' })),
   ],
-  examples: [],
-  sites: [],
+  examples: ['allele_freq.json', 'allele_freq_filtered.json', 'allele_freq_rejected.json', 'fed_linreg.json', 'fed_logreg.json'],
+  sites: [
+    { tre_id: 'hunt', adapter: 'rest', region: 'NO' }, 
+    { tre_id: 'gefion', adapter: 'datashield', region: 'NO' }, 
+    { tre_id: 'brev', adapter: 'sql', region: 'NO' }
+  ],
   analysis_types: [
     'allele_freq',
     'fed_stats',
@@ -144,6 +151,12 @@ export default function Home() {
     () => metadata.variables.filter((variable) => variable.type === 'binary'),
     [metadata]
   )
+  const genotypeVariables = useMemo(() => metadata.variables.filter((variable) => variable.type === 'genotype'), [metadata])
+  const phenotypeVariables = useMemo(() => metadata.variables.filter((variable) => variable.type !== 'genotype'), [metadata])
+  
+  const isLinear = analysisType === 'fed_linreg'
+  const isLogistic = analysisType === 'logistic_regression'
+  const isRegression = isLinear || isLogistic
 
   useEffect(() => {
     if (
@@ -168,7 +181,6 @@ export default function Home() {
       .catch(() => setMetadataError(true))
   }, [])
 
-  // Safely recursive timeout polling loop
   useEffect(() => {
     if (!runId) return
 
@@ -206,10 +218,6 @@ export default function Home() {
     if (view === 'audit') api('/audit').then((body) => setAudit(body.items || [])).catch((error) => setNotice(error.message))
   }, [view])
 
-  const genotypeVariables = useMemo(() => metadata.variables.filter((variable) => variable.type === 'genotype'), [metadata])
-  const phenotypeVariables = useMemo(() => metadata.variables.filter((variable) => variable.type !== 'genotype'), [metadata])
-  const isRegression = analysisType === 'fed_linreg' || analysisType === 'logistic_regression'
-
   function toggleVariable(name) {
     setVariables((current) => current.includes(name) ? current.filter((item) => item !== name) : [...current, name])
   }
@@ -227,7 +235,9 @@ export default function Home() {
       setProjectId(spec.project_id)
       setOutcome(spec.outcome || 'sbp')
       setMinCell(spec.min_cell_size || 5)
-      setFilterRows(Object.entries(spec.filters || {}).flatMap(([variable, conditions]) => Object.entries(conditions).map(([op, filterValue]) => ({ variable, op, value: String(filterValue) }))) || [{ variable: '', op: '==', value: '' }])
+      setRounds(spec.fedavg_rounds || 0)
+      const loaded = Object.entries(spec.filters || {}).flatMap(([variable, conditions]) => Object.entries(conditions).map(([op, filterValue]) => ({ variable, op, value: String(filterValue) })))
+      setFilterRows(loaded.length ? loaded : [{ variable: '', op: '==', value: '' }])
     }).catch((error) => setNotice(error.message))
   }
 
@@ -259,10 +269,11 @@ export default function Home() {
           filters: buildFilters(),
           min_cell_size: Number(minCell),
           project_id: projectId,
-          ...(isRegression ? { outcome, fedavg_rounds: Number(rounds) } : {}),
+          ...(isRegression ? { outcome } : {}),
+          ...(isLinear ? { fedavg_rounds: Number(rounds) } : {}),
         }),
       })
-      setRunId(body.run_id)
+      setRunId(body.run_id || body.id)
       setNotice('Run submitted. Waiting for TRE responses...')
     } catch (error) {
       setNotice(error.message)
@@ -272,8 +283,8 @@ export default function Home() {
 
   async function decide(item, decision) {
     try {
-      await api(`/overseer/${item.spec_hash}/${decision}`, { method: 'POST', body: JSON.stringify({ note: '', by: 'researcher' }) })
-      setPending((items) => items.filter((entry) => entry.spec_hash !== item.spec_hash))
+      await api(`/overseer/${item.spec_hash || item.id}/${decision}`, { method: 'POST', body: JSON.stringify({ note: '', by: 'researcher' }) })
+      setPending((items) => items.filter((entry) => (entry.spec_hash || entry.id) !== (item.spec_hash || item.id)))
       setNotice(`Result ${decision}d.`)
     } catch (error) {
       setNotice(error.message)
@@ -293,6 +304,7 @@ export default function Home() {
           <div className="avatar">RW</div>
         </div>
       </header>
+
       <div className="workspace">
         <aside className="sidebar">
           <div className="side-label">Researcher menu</div>
@@ -304,7 +316,7 @@ export default function Home() {
           <div className="sidebar-bottom">
             <div className="side-label">System status</div>
             <div className={`system-status ${metadataError ? 'unknown-system' : ''}`}><i /> {metadataError ? 'API unavailable' : 'API connected'}</div>
-            <small>{metadataError ? 'Health check failed' : 'Ready for a new run'}</small>
+            <small>{metadataError ? 'Metadata endpoint unavailable' : 'Ready for a new run'}</small>
           </div>
         </aside>
 
@@ -349,7 +361,7 @@ export default function Home() {
 
                   <button
                     type="button"
-                    className={analysisType === 'fed_linreg' ? 'selected' : ''}
+                    className={isLinear ? 'selected' : ''}
                     onClick={() => setAnalysisType('fed_linreg')}
                   >
                     <GitBranch size={18} />
@@ -361,10 +373,10 @@ export default function Home() {
 
                   <button
                     type="button"
-                    className={analysisType === 'logistic_regression' ? 'selected' : ''}
+                    className={isLogistic ? 'selected' : ''}
                     onClick={() => setAnalysisType('logistic_regression')}
                   >
-                    <GitBranch size={18} />
+                    <BarChart3 size={18} />
                     <span>
                       <strong>Logistic regression</strong>
                       <small>Federated learning</small>
@@ -421,16 +433,18 @@ export default function Home() {
                         <label>
                           Outcome
                           <select value={outcome} onChange={(event) => setOutcome(event.target.value)}>
-                            {(analysisType === 'logistic_regression' ? binaryVariables : phenotypeVariables).map((variable) => (
+                            {(isLogistic ? binaryVariables : phenotypeVariables).map((variable) => (
                               <option key={variable.name} value={variable.name}>{variable.name}</option>
                             ))}
                           </select>
                         </label>
-                        <label>
-                          FedAvg rounds
-                          <input type="number" min="0" value={rounds} onChange={(event) => setRounds(event.target.value)} />
-                          <small className="field-help">0 = exact aggregation</small>
-                        </label>
+                        {isLinear ? (
+                          <label>
+                            FedAvg rounds
+                            <input type="number" min="0" value={rounds} onChange={(event) => setRounds(event.target.value)} />
+                            <small className="field-help">0 = exact aggregation</small>
+                          </label>
+                        ) : null}
                       </div>
                     ) : null}
 
@@ -467,9 +481,7 @@ export default function Home() {
                           <input value={row.value} placeholder="Value" onChange={(event) => updateFilter(index, 'value', event.target.value)} />
                         </div>
                       ))}
-                      <button type="button" className="link-button" onClick={() => setFilterRows((rows) => [...rows, { variable: '', op: '==', value: '' }])}>
-                        + Add filter
-                      </button>
+                      <button type="button" className="link-button" onClick={() => setFilterRows((rows) => [...rows, { variable: '', op: '==', value: '' }])}>+ Add filter</button>
                     </fieldset>
 
                     <button className="run-button" disabled={running || !variables.length}>
@@ -487,34 +499,26 @@ export default function Home() {
                       <span className="connection-count"><i /> {metadata.sites.filter((site) => site.online).length || '—'} online</span>
                     </div>
                     <div className="site-list">
-                      {metadata.sites.length ? (
-                        metadata.sites.map((site) => (
-                          <div className="site-row" key={site.tre_id || site.name}>
-                            <div className="site-icon"><Database size={17} /></div>
-                            <div className="site-info">
-                              <strong>{site.tre_id || site.name}</strong>
-                              <span>{site.adapter || 'adapter'} · {site.region || 'connected'}</span>
-                            </div>
-                            <span className={`site-state ${site.online ? '' : 'unknown-state'}`}>
-                              {site.online ? <><Check size={13} /> Ready</> : 'Status unknown'}
-                            </span>
+                      {metadata.sites.length ? metadata.sites.map((site) => (
+                        <div className="site-row" key={site.tre_id || site.name}>
+                          <div className="site-icon"><Database size={17} /></div>
+                          <div className="site-info">
+                            <strong>{site.tre_id || site.name}</strong>
+                            <span>{site.adapter || 'adapter'} · {site.region || 'connected'}</span>
                           </div>
-                        ))
-                      ) : (
-                        <div className="empty-state">Site metadata is unavailable until the API connects.</div>
-                      )}
+                          <span className={`site-state ${site.online ? '' : 'unknown-state'}`}>
+                            {site.online ? <><Check size={13} /> Ready</> : 'Status unknown'}
+                          </span>
+                        </div>
+                      )) : <div className="empty-state">Site metadata is unavailable until the API connects.</div>}
                     </div>
-                    <div className="site-footer">
-                      <ShieldCheck size={15} /> Disclosure policy: k ≥ {minCell} · TLS enabled
-                    </div>
+                    <div className="site-footer"><ShieldCheck size={15} /> Disclosure policy: k ≥ {minCell} · TLS enabled</div>
                   </section>
                 </div>
               </form>
 
               <section className="results-section">
-                {run ? (
-                  <ResultView result={run} />
-                ) : (
+                {run ? <ResultView result={run} /> : (
                   <div className="empty-results">
                     <Activity size={20} />
                     <strong>{notice || 'Your federated result will appear here.'}</strong>
@@ -533,23 +537,19 @@ export default function Home() {
                 </div>
               </div>
               <div className="panel queue-panel">
-                {pending.length ? (
-                  pending.map((item) => (
-                    <div className="queue-row" key={item.id || item.spec_hash}>
-                      <div>
-                        <strong>Spec hash: {item.spec_hash}</strong>
-                        <span>{item.reason || item.reasons?.join(', ') || 'Disclosure review required'}</span>
-                        <small>{item.tre_id || 'Federated result'}</small>
-                      </div>
-                      <div className="queue-actions">
-                        <button className="approve-button" onClick={() => decide(item, 'approve')}><Check size={15} /> Approve</button>
-                        <button className="reject-button" onClick={() => decide(item, 'reject')}><X size={15} /> Reject</button>
-                      </div>
+                {pending.length ? pending.map((item) => (
+                  <div className="queue-row" key={item.id || item.spec_hash}>
+                    <div>
+                      <strong>Spec hash: {item.spec_hash}</strong>
+                      <span>{item.reason || item.reasons?.join(', ') || 'Disclosure review required'}</span>
+                      <small>{item.tre_id || 'Federated result'}</small>
                     </div>
-                  ))
-                ) : (
-                  <div className="empty-state"><Check size={18} /> No results are waiting for release.</div>
-                )}
+                    <div className="queue-actions">
+                      <button className="approve-button" onClick={() => decide(item, 'approve')}><Check size={15} /> Approve</button>
+                      <button className="reject-button" onClick={() => decide(item, 'reject')}><X size={15} /> Reject</button>
+                    </div>
+                  </div>
+                )) : <div className="empty-state"><Check size={18} /> No results are waiting for release.</div>}
               </div>
             </>
           ) : (
@@ -566,17 +566,11 @@ export default function Home() {
                   <div className="table-wrap">
                     <table>
                       <thead>
-                        <tr>
-                          <th>Time</th>
-                          <th>Site</th>
-                          <th>Spec hash</th>
-                          <th>Decision</th>
-                          <th>Released</th>
-                        </tr>
+                        <tr><th>Time</th><th>Site</th><th>Spec hash</th><th>Decision</th><th>Released</th></tr>
                       </thead>
                       <tbody>
                         {audit.map((entry, index) => (
-                          <tr key={entry.id || `${entry.spec_hash}-${index}`}>
+                          <tr key={index}>
                             <td>{entry.timestamp || entry.time}</td>
                             <td>{entry.tre_id || entry.site}</td>
                             <td><strong>{entry.spec_hash}</strong></td>
@@ -587,9 +581,7 @@ export default function Home() {
                       </tbody>
                     </table>
                   </div>
-                ) : (
-                  <div className="empty-state"><FileClock size={18} /> No audit entries returned.</div>
-                )}
+                ) : <div className="empty-state"><FileClock size={18} /> No audit entries returned.</div>}
               </div>
             </>
           )}

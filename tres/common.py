@@ -81,3 +81,20 @@ def gram(df: pd.DataFrame, cols: list[str]) -> dict:
 
     X = np.column_stack([np.ones(len(df))] + [df[c].to_numpy(float) for c in cols])
     return {"n": int(len(df)), "cols": ["1", *cols], "matrix": (X.T @ X).tolist()}
+
+
+def irls_step(df: pd.DataFrame, outcome: str, features: list[str], beta: list[float]) -> dict:
+    """One Newton-Raphson (IRLS) step's worth of sufficient statistics for logistic
+    regression on [1, *features] -> outcome, evaluated at the given beta: the local
+    gradient and Hessian of the log-likelihood. Row-level data is used here, inside
+    the TRE process, to produce this aggregate; only n/grad/hess ever leave."""
+    import numpy as np
+
+    X = np.column_stack([np.ones(len(df))] + [df[c].to_numpy(float) for c in features])
+    y = df[outcome].to_numpy(float)
+    eta = X @ np.asarray(beta, dtype=float)
+    p = 1.0 / (1.0 + np.exp(-eta))
+    w = np.clip(p * (1 - p), 1e-6, None)
+    grad = X.T @ (y - p)
+    hess = X.T @ (X * w[:, None])
+    return {"n": int(len(df)), "grad": grad.tolist(), "hess": hess.tolist()}

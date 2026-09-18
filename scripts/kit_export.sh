@@ -9,6 +9,6 @@ TRE_ID=${1:?usage: kit_export.sh <tre_id>}
 KIT=flare/kits/$TRE_ID.tgz
 [ -f "$KIT" ] || { echo "no $KIT -- run scripts/bootstrap_server.sh or scripts/onboard_tre.sh first" >&2; exit 1; }
 echo "== paste everything between the markers into: scripts/kit_import.sh $TRE_ID" >&2
-echo "-----BEGIN BIFROST KIT $TRE_ID-----"
+echo "-----BEGIN HEIMDALL KIT $TRE_ID-----"
 base64 < "$KIT" | tr -d '\n'; echo
-echo "-----END BIFROST KIT $TRE_ID-----"
+echo "-----END HEIMDALL KIT $TRE_ID-----"

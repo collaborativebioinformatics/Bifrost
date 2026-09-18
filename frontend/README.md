@@ -1,6 +1,6 @@
-# Bifrost Next.js UI
+# Heimdall Next.js UI
 
-A Next.js interface for the Bifrost federated analysis API. It is intentionally isolated under `frontend/` from the Python TRE and FLARE code.
+A Next.js interface for the Heimdall federated analysis API. It is intentionally isolated under `frontend/` from the Python TRE and FLARE code.
 
 ## Run
 

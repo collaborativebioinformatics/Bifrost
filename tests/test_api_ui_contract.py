@@ -69,6 +69,32 @@ def test_run_fedavg_regression(api):
     assert body["result"]["stats"]["_linreg"]["ols"]["coef"] == pytest.approx(GT["ols"]["coef"], abs=1e-4)
 
 
+def test_run_logistic_regression(api):
+    """The background /run path dispatches fed_logreg to the multi-round Newton-Raphson
+    service; the recorded and released result passes the strict contracts."""
+    client = api[0]
+    r = client.post("/run", json={"analysis_type": "fed_logreg", "variables": GT["logreg"]["features"],
+                                  "outcome": GT["logreg"]["outcome"], "project_id": PROJECT})
+    assert r.status_code == 202
+    body = _wait(client, r.json()["run_id"])
+    assert body["status"] == "completed" and body["decision"] == "OK"
+    ReleasedResult.model_validate(body["result"])
+    assert body["result"]["method"]["mode"] == "newton_raphson"
+    assert body["result"]["stats"]["_logreg"]["logreg"]["coef"] == pytest.approx(GT["logreg"]["coef"], abs=1e-6)
+
+
+def test_run_rejects_non_binary_logistic_outcome_before_any_tre_call(api):
+    client, _, called = api
+    assert client.post("/run", json={"analysis_type": "fed_logreg", "variables": ["age", "bmi"], "outcome": "sbp",
+                                     "project_id": PROJECT}).status_code == 422
+    assert called == []
+
+
+def test_metadata_offers_logistic_regression(api):
+    body = api[0].get("/metadata", params={"probe": False}).json()
+    assert "fed_logreg" in body["analysis_types"] and "fed_logreg.json" in body["examples"]
+
+
 def test_run_rejects_bad_specs_before_any_tre_call(api):
     client, _, called = api
     assert client.post("/run", json={"analysis_type": "allele_freq", "variables": ["age"], "project_id": PROJECT}).status_code == 422

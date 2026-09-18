@@ -1,8 +1,8 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Bifrost federated analysis API",
-    "description": "Bifrost HTTP API -- the contract the researcher UI (frontend/) talks to.\n\n    SERVER_OUT=server/api_out uvicorn server.api:app --port 8500 --workers 1\n\nStart mock TREs separately with `python scripts/dev_tres.py`. Neither TREs nor\nFLARE are required for startup or /health. API_TRE_TIMEOUT (seconds per HTTP\noperation, default 10) and API_TRE_WORKERS (default 8) control adapter fan-out;\nAPI_CORS_ORIGINS (comma-separated, default http://localhost:3000) allows the UI\norigin. Use an exclusive SERVER_OUT directory; see analysis_service's\nconcurrency and demo-versus-secure-deployment notes. Variable names are\ncanonical (snp_rs001), never local column names; requests carry variable\nnames, never participant data. Response shapes: server/schemas.py, exported to\ndocs/schemas/ and served at /openapi.json.\n",
+    "title": "Heimdall federated analysis API",
+    "description": "Heimdall HTTP API -- the contract the researcher UI (frontend/) talks to.\n\n    SERVER_OUT=server/api_out uvicorn server.api:app --port 8500 --workers 1\n\nStart mock TREs separately with `python scripts/dev_tres.py`. Neither TREs nor\nFLARE are required for startup or /health. API_TRE_TIMEOUT (seconds per HTTP\noperation, default 10) and API_TRE_WORKERS (default 8) control adapter fan-out;\nAPI_CORS_ORIGINS (comma-separated, default http://localhost:3000) allows the UI\norigin. Use an exclusive SERVER_OUT directory; see analysis_service's\nconcurrency and demo-versus-secure-deployment notes. Variable names are\ncanonical (snp_rs001), never local column names; requests carry variable\nnames, never participant data. Response shapes: server/schemas.py, exported to\ndocs/schemas/ and served at /openapi.json.\n",
     "version": "0.2.0"
   },
   "paths": {
@@ -102,6 +102,55 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RegressionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/logistic-regression": {
+      "post": {
+        "summary": "Logistic Regression",
+        "description": "Federated logistic regression (Newton-Raphson/IRLS). Unlike /linear-regression this\nmakes up to `rounds` sequential round-trips to every site, so it is not one call.",
+        "operationId": "logistic_regression_logistic_regression_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogisticRegressionRequest"
               }
             }
           },
@@ -698,38 +747,6 @@
         ],
         "title": "AuditLog"
       },
-      "FedAvgRound": {
-        "properties": {
-          "round": {
-            "type": "integer",
-            "title": "Round"
-          },
-          "sites": {
-            "type": "integer",
-            "title": "Sites"
-          },
-          "max_delta": {
-            "type": "number",
-            "title": "Max Delta"
-          },
-          "coef": {
-            "additionalProperties": {
-              "type": "number"
-            },
-            "type": "object",
-            "title": "Coef"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "round",
-          "sites",
-          "max_delta",
-          "coef"
-        ],
-        "title": "FedAvgRound"
-      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -742,6 +759,96 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "LogReg": {
+        "properties": {
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "coef": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coef"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "LogReg"
+      },
+      "LogisticRegressionRequest": {
+        "properties": {
+          "features": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Features"
+          },
+          "target": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Target"
+          },
+          "project_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Project Id"
+          },
+          "filters": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Filters"
+          },
+          "min_cell_size": {
+            "type": "integer",
+            "minimum": 5.0,
+            "title": "Min Cell Size",
+            "default": 5
+          },
+          "rounds": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Rounds",
+            "default": 25
+          },
+          "tol": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Tol",
+            "default": 1e-08
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "features",
+          "target",
+          "project_id"
+        ],
+        "title": "LogisticRegressionRequest",
+        "description": "POST /logistic-regression: a RegressionRequest plus the Newton-Raphson budget."
       },
       "MergedVariableStats": {
         "properties": {
@@ -895,6 +1002,16 @@
               }
             ]
           },
+          "logreg": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LogReg"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "n": {
             "anyOf": [
               {
@@ -910,7 +1027,7 @@
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/components/schemas/FedAvgRound"
+                  "$ref": "#/components/schemas/Round"
                 },
                 "type": "array"
               },
@@ -981,7 +1098,8 @@
             "type": "string",
             "enum": [
               "exact",
-              "fedavg"
+              "fedavg",
+              "newton_raphson"
             ],
             "title": "Mode"
           },
@@ -1017,6 +1135,28 @@
               }
             ],
             "title": "Lr"
+          },
+          "ridge": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ridge"
+          },
+          "tol": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tol"
           }
         },
         "additionalProperties": false,
@@ -1348,6 +1488,39 @@
         "title": "ReleasedResult",
         "description": "What leaves the server after the disclosure check / overseer approval."
       },
+      "Round": {
+        "properties": {
+          "round": {
+            "type": "integer",
+            "title": "Round"
+          },
+          "sites": {
+            "type": "integer",
+            "title": "Sites"
+          },
+          "max_delta": {
+            "type": "number",
+            "title": "Max Delta"
+          },
+          "coef": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Coef"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "round",
+          "sites",
+          "max_delta",
+          "coef"
+        ],
+        "title": "Round",
+        "description": "One FedAvg (fed_linreg) or Newton-Raphson (fed_logreg) round."
+      },
       "RunRequest": {
         "properties": {
           "analysis_type": {
@@ -1355,7 +1528,8 @@
             "enum": [
               "allele_freq",
               "fed_stats",
-              "fed_linreg"
+              "fed_linreg",
+              "fed_logreg"
             ],
             "title": "Analysis Type"
           },
@@ -1413,7 +1587,7 @@
           "project_id"
         ],
         "title": "RunRequest",
-        "description": "POST /run body: an AnalysisSpec plus how to fit a fed_linreg."
+        "description": "POST /run body: an AnalysisSpec plus how to fit a fed_linreg. A fed_logreg\nruns Newton-Raphson with the service defaults (25 rounds, tol 1e-8)."
       },
       "RunStatus": {
         "properties": {
