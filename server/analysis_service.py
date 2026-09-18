@@ -174,7 +174,8 @@ def _valid_statistics(merged: dict, spec: AnalysisSpec) -> bool:
 def _valid_logreg_statistics(merged: dict, spec: AnalysisSpec) -> bool:
     fit = merged["stats"].get("_logreg", {}).get("logreg", {})
     coef = fit.get("coef", {})
-    return bool(coef) and all(math.isfinite(v) for v in coef.values())
+    # A beta that no Newton round ever updated is the zero start vector, not a fit.
+    return bool(coef) and merged["method"]["rounds"] > 0 and all(math.isfinite(v) for v in coef.values())
 
 
 def analyse(spec: AnalysisSpec) -> tuple[int, dict]:
@@ -269,10 +270,10 @@ def analyse_logreg(spec: AnalysisSpec, rounds: int = 25, tol: float = 1e-8, ridg
                         round_failed[tid] = error
                     else:
                         round_steps[tid] = step
-            if len(round_steps) < 2:
-                break  # too few sites answered this round; keep the last beta we had
             for tid, err in round_failed.items():
                 failed.setdefault(tid, err)  # first failure reason wins; a site can recover next round
+            if len(round_steps) < 2:
+                break  # too few sites answered this round; keep the last beta we had
             n, grad, hess = logreg.combine(list(round_steps.values()))
             new_beta = logreg.newton_update(beta, grad, hess, ridge=ridge)
             delta = logreg.max_abs_delta(beta, new_beta)

@@ -73,12 +73,12 @@ class FedLogregController(Controller):
             replies = self._round("logreg_step", data, fl_ctx, abort_signal, targets=sites)
             if abort_signal.triggered:
                 return
-            if len(replies) < self.min_clients:
-                self.log_error(fl_ctx, f"round {r}: only {len(replies)} updates; stopping early")
-                break
             miss = [s for s in sites if s not in replies]
             if miss:
                 missing_rounds[r] = miss
+            if len(replies) < self.min_clients:
+                self.log_error(fl_ctx, f"round {r}: only {len(replies)} updates; stopping early")
+                break
 
             n, grad, hess = logreg.combine([rep["step"] for rep in replies.values()])
             new_beta = logreg.newton_update(beta, grad, hess, ridge=self.ridge)
@@ -89,6 +89,11 @@ class FedLogregController(Controller):
             self.log_info(fl_ctx, f"round {r}/{self.rounds}: {len(replies)} sites, max|Δβ|={delta:.2e}")
             if delta < self.tol:
                 break
+
+        if not history:
+            # beta is still the zero start vector; recording it would release a non-fit
+            self.log_error(fl_ctx, "no Newton round completed; not recording a result")
+            return
 
         merged = {
             "sites_expected": expected, "sites_reported": sites, "sites_missing": [s for s in expected if s not in sites],

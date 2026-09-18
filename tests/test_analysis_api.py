@@ -170,6 +170,35 @@ def test_logistic_regression_site_fails_mid_rounds(api, sites):
     assert max(abs(coef[k] - GT["logreg"]["coef"][k]) for k in coef) < 0.5  # close, not exact: 2/3 sites
 
 
+def test_logistic_regression_flagged_when_rounds_lose_sites(api, sites):
+    """Two of three sites gate in and then go dark, so no Newton round ever has the
+    two responders it needs. The run must be flagged rather than released as a
+    zero-round, all-zero fit, and the dark sites must show up in sites_failed."""
+    client, failed, called = api
+    bad = {s["tre_id"] for s in sites[1:]}
+    original = registry.load
+    calls = dict.fromkeys(bad, 0)
+
+    def load(tre_id):
+        if tre_id in bad:
+            calls[tre_id] += 1
+            if calls[tre_id] > 1:  # succeeds the init/gating call, fails every round after
+                raise httpx.ConnectError("private TRE connection details")
+        return original(tre_id)
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(registry, "load", load)
+    try:
+        response = client.post("/logistic-regression", json={
+            "features": GT["logreg"]["features"], "target": GT["logreg"]["outcome"], "project_id": PROJECT})
+    finally:
+        monkeypatch.undo()
+    assert response.status_code == 200
+    body = assert_safe(response)
+    assert body["decision"] == "FLAGGED" and body["reasons"] == ["analysis"]
+    assert body["sites_failed"] == dict.fromkeys(bad, "unavailable")
+
+
 def test_invalid_logreg_target_fails_before_calls(api):
     response = api[0].post("/logistic-regression", json={
         "features": ["age", "bmi"], "target": "sbp", "project_id": PROJECT})  # sbp is continuous, not binary

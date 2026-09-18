@@ -94,3 +94,36 @@ def test_min_clients_gate_matches_analysis_controller(adapters):
     for a in adapters.values():
         r = a.run(spec)
         assert r.n == 0
+
+
+# ---- controller: a run with no completed Newton round is not a result -----------------
+def test_controller_does_not_record_a_zero_round_fit(monkeypatch, tmp_path, sites):
+    """If no Newton round ever reaches min_clients, the controller must not hand the
+    untouched all-zero beta to the disclosure check and overseer queue as a result."""
+    from nvflare.apis.fl_context import FLContext
+    from nvflare.apis.shareable import Shareable
+    from nvflare.apis.signal import Signal
+
+    from flare.app.logreg_controller import FedLogregController
+    from server import overseer_queue
+
+    monkeypatch.setenv("SERVER_OUT", str(tmp_path))
+    tids = [s["tre_id"] for s in sites]
+    p = len(FEATURES) + 1
+
+    def reply(**fields):
+        shareable = Shareable()
+        shareable.update(fields)
+        return shareable
+
+    def fake_round(name, data, fl_ctx, abort_signal, targets=None):
+        if name == "logreg_init":
+            return {tid: reply(n=100) for tid in tids}
+        return {tids[0]: reply(step={"n": 100, "grad": [0.0] * p, "hess": [[0.0] * p] * p})}  # 1 < min_clients
+
+    recorded = []
+    monkeypatch.setattr(overseer_queue, "record", lambda *args: recorded.append(args))
+    ctl = FedLogregController(SPEC.model_dump(), rounds=3, min_clients=2)
+    monkeypatch.setattr(ctl, "_round", fake_round)
+    ctl.control_flow(Signal(), FLContext())
+    assert recorded == []

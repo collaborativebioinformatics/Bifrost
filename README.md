@@ -48,7 +48,7 @@ scripts/local_federation.sh down
 The fast suite needs no network. The FLARE simulator suite is marked `slow` and needs `nvflare` installed:
 
 ```sh
-python -m pytest -q -m "not slow"    # 95 tests
+python -m pytest -q -m "not slow"    # 97 tests
 python -m pytest -q -m slow          # 4 tests, ~70 s
 ```
 
