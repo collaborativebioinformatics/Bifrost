@@ -11,7 +11,7 @@ PY=${PY:-python}
 if [ "${1:-}" = "--down" ]; then docker compose --profile flare down; exit 0; fi
 
 $PY scripts/gen_sites.py
-[ -f data/ground_truth.json ] || $PY data/generate.py
+ls data/sites/*.csv >/dev/null 2>&1 || $PY data/generate.py
 
 PROFILE=()
 [ "${1:-}" = "--flare" ] && PROFILE=(--profile flare)
