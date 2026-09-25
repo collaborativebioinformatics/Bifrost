@@ -8,7 +8,10 @@ function render(result) {
   return renderToStaticMarkup(createElement(ResultView, { result }))
 }
 
-for (const [decision, projectionKey] of [['FLAGGED', 'released'], ['REJECTED', 'released_result']]) {
+for (const [decision, projectionKey, heading] of [
+  ['FLAGGED', 'released', /Output withheld pending release/],
+  ['REJECTED', 'released_result', /Output rejected by the overseer/],
+]) {
   test(`holds total and per-site counts with ${decision.toLowerCase()} output`, () => {
     const html = render({
       decision,
@@ -28,7 +31,7 @@ for (const [decision, projectionKey] of [['FLAGGED', 'released'], ['REJECTED', '
       },
     })
 
-    assert.match(html, /Output withheld pending release/)
+    assert.match(html, heading)
     assert.doesNotMatch(html, /Records analysed/)
     assert.doesNotMatch(html, /hunt: 21/)
     assert.doesNotMatch(html, /stale: 999/)

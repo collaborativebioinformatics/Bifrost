@@ -39,7 +39,7 @@ export function ResultView({ result }) {
         <Stat label="Disclosure items" value={reasons.length + rejected.length} detail="none rejected" />
       </div> : null}
       {!released ? <div className="held-result">
-        <strong>Output withheld pending release.</strong>
+        <strong>{decision === 'REJECTED' ? 'Output rejected by the overseer.' : 'Output withheld pending release.'}</strong>
         {heldReasons.length ? heldReasons.map((reason) => <span key={reason}><Info size={13} /> {reason}</span>) : <span><Info size={13} /> The disclosure decision has not released statistics for this run.</span>}
       </div> : rows.length ? <div className="table-wrap"><table>
         <thead><tr><th>Variable</th><th>Statistic</th><th>Released value</th></tr></thead>
