@@ -2,7 +2,7 @@
 
 Four example analysis specifications live in `spec/examples/`. Together they walk through the full path — one request, three heterogeneous TREs, local computation, safe output, server-side aggregation and disclosure control — and they cover the release case, the filtered case, the suppression case and the federated-learning case.
 
-Every spec is an `AnalysisSpec` (`spec/analysis_spec.py`): canonical variable names only, a `project_id` that must appear in the Safe Projects allow-list (`projects.yaml`), and a `min_cell_size` that sets the suppression threshold. The spec hash keys the audit and release logs.
+Every spec is an `AnalysisSpec` (`spec/analysis_spec.py`): canonical variable names only, a `project_id` that must appear in the Safe Projects allow-list (`projects.yaml`), and a `min_cell_size` that sets the suppression threshold — raised to the project's `min_cell_size` floor in `projects.yaml` (default 5), never lowered below it. The spec hash keys the audit and release logs.
 
 ## Running them
 
@@ -49,7 +49,7 @@ This spec is not exactness-checked. When the `spec.json` beside the result conta
 
 **What should happen.** This is a *partial* release, not a total rejection. Verified by `tests/test_m2_adapters.py::test_small_cells_suppressed_and_audited`: at every site the homozygous-minor genotype cell (`2`) falls below 100 and is withheld, and because allele counts could be back-calculated from the remaining cells, they are withheld too — `snp_rs001.allele_counts:derived_from_suppressed_cell`. Each site audits the run as `PARTIAL`.
 
-Because every site suppressed something, the server-side check adds a `site_suppression` reason per site (`server/disclosure_check.py`), so the merged result is `FLAGGED`. This flagged result requires overseer approval before release, via `server/overseer_queue.py`. An older `released.json` can remain from a previous run of the same spec, since run directories are keyed by spec hash — `check.json` carries the current decision.
+Because every site suppressed something, the server-side check adds a `site_suppression` reason per site (`server/disclosure_check.py`), so the merged result is `FLAGGED`. This flagged result requires overseer approval before release, via `server/overseer_queue.py`. Run directories are keyed by spec hash and describe the latest run: a flagged rerun withdraws an earlier `released.json`, and the release log keeps the history.
 
 **What it demonstrates.** How the disclosure controls handle small cells end to end: a local rule fires, the reason is recorded in each TRE's audit log, the server notices the incomplete table, and release waits on a person.
 
@@ -57,7 +57,7 @@ Because every site suppressed something, the server-side check adds a `site_supp
 
 **Purpose.** Federated linear regression: `sbp` on age, sex, BMI, LDL and the three causal variants.
 
-**What should happen.** Each TRE returns a Gram matrix — the sufficient statistic for OLS — and nothing else; the server sums them and solves once. The filter releases a Gram matrix only when `n >= max(min_cell_size, #cols + 1)`. That is a sample-count threshold, not a test for near-singularity: it withholds output from a site with too few rows to fit the model, but it does not detect an ill-conditioned one.
+**What should happen.** Each TRE returns a Gram matrix — the sufficient statistic for OLS — and nothing else; the server sums them and solves once. The filter releases a Gram matrix only when `n >= max(min_cell_size, #cols + 1)` and every selected row has every regression column; a site with missing values is rejected rather than fitted on a different set of rows. That is a sample-count threshold, not a test for near-singularity: it withholds output from a site with too few rows to fit the model, but it does not detect an ill-conditioned one.
 
 A FedAvg variant runs through `scripts/run_job.py --fedavg`. Rows still never leave, but more than coefficients does: in round 0 each site reports its `n` plus feature sums and sums of squares, so the server can fix one global standardisation; in each later round a site returns its `n` and its updated coefficients (`flare/app/linreg.py`).
 
@@ -71,4 +71,3 @@ Read this before quoting any of it as a result.
 - **Verified on one machine.** That run was a real provisioned FLARE federation over mTLS, not the simulator, but every process was local. Running in Docker containers (`scripts/provision.sh && scripts/up.sh --flare`) was verified separately on 2026-09-17 (see [AGENTS.md](../AGENTS.md)), but the expected outcomes here were not re-captured under Docker. Running across machines or institutions is still unverified.
 - **`verify.py` checks what is present.** It reads the merged result, not the released artifact. It compares allele frequencies even under partial coverage, and means and OLS coefficients only when every site reported. Statistics the filter suppressed are skipped entirely. `PASS` means no compared statistic exceeded tolerance — zero comparisons still produce `PASS`.
 - **Synthetic data, invented column names.** The cohort comes from `data/generate.py` and the per-site local names in `docs/variables.md` are placeholders for the mock TREs, agreed with no real site.
-- **`released.json` can be stale.** Run directories are keyed by spec hash, so a release from an earlier run of the same spec survives a later flagged run. `check.json` carries the current decision.

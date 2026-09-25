@@ -137,3 +137,62 @@ def test_audit_lists_site_entries_newest_first(api):
 
 def test_exported_schemas_are_current():
     subprocess.run([sys.executable, "scripts/export_schemas.py", "--check"], cwd=ROOT, check=True)
+
+
+def test_run_fed_stats_releases_valid_statistics(api):
+    client = api[0]
+    body = _wait(client, client.post("/run", json={"analysis_type": "fed_stats", "variables": ["age", "bmi"],
+                                                    "project_id": PROJECT}).json()["run_id"])
+    RunStatus.model_validate(body)
+    assert body["status"] == "completed" and body["decision"] == "OK", body
+    age = body["result"]["stats"]["age"]
+    assert age["count"] == GT["n_total"] and abs(age["mean"] - GT["mean"]["age"]) < 1e-9
+
+
+@pytest.mark.parametrize("decision", ["approve", "reject"])
+def test_overseer_decision_updates_the_polled_run(api, decision):
+    client = api[0]
+    run_id = client.post("/run", json={"analysis_type": "allele_freq", "variables": ["snp_rs001"], "project_id": PROJECT,
+                                       "min_cell_size": 100}).json()["run_id"]
+    body = _wait(client, run_id)
+    assert body["status"] == "flagged"
+    assert client.post(f"/overseer/{body['spec_hash']}/{decision}", json={"by": "tester"}).status_code == 200
+    after = client.get(f"/run/{run_id}").json()
+    RunStatus.model_validate(after)
+    if decision == "approve":
+        assert after["status"] == "completed" and after["decision"] == "APPROVED"
+        ReleasedResult.model_validate(after["result"])
+    else:
+        assert after["status"] == "rejected" and after["decision"] == "REJECTED" and "result" not in after
+
+
+@pytest.mark.parametrize("decision", ["approve", "reject"])
+def test_decision_between_record_and_run_update_is_not_lost(api, monkeypatch, decision):
+    """record() makes the flagged item visible before the background thread writes the
+    run's status; a decision landing in that gap must still reach GET /run/{id}."""
+    import threading
+
+    from server import api as api_module
+
+    client = api[0]
+    recorded, proceed = threading.Event(), threading.Event()
+    real = api_module._analyse
+
+    def analyse_then_pause(*args, **kwargs):
+        result = real(*args, **kwargs)  # record() has run: the item is queued
+        recorded.set()
+        proceed.wait(30)
+        return result
+
+    monkeypatch.setattr(api_module, "_analyse", analyse_then_pause)
+    submitted = client.post("/run", json={"analysis_type": "allele_freq", "variables": ["snp_rs001"],
+                                          "project_id": PROJECT, "min_cell_size": 100}).json()
+    assert recorded.wait(30)
+    assert client.post(f"/overseer/{submitted['spec_hash']}/{decision}", json={"by": "tester"}).status_code == 200
+    proceed.set()
+    body = _wait(client, submitted["run_id"])
+    if decision == "approve":
+        assert body["status"] == "completed" and body["decision"] == "APPROVED", body
+        ReleasedResult.model_validate(body["result"])
+    else:
+        assert body["status"] == "rejected" and body["decision"] == "REJECTED" and "result" not in body, body

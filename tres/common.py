@@ -75,12 +75,20 @@ def aggregate(series: pd.Series, agg: str) -> Any:
     raise ValueError(f"unsupported agg {agg!r}")
 
 
+def _complete(df: pd.DataFrame, cols: list[str]) -> bool:
+    """Regression inputs must be complete: a row missing any column would otherwise
+    poison the sums (NaN) or, in SQL, silently drop out of some sums but not others."""
+    return bool(df[cols].notna().all(axis=None))
+
+
 def gram(df: pd.DataFrame, cols: list[str]) -> dict:
     """Cross-product matrix of [1, *cols]; the sufficient statistic for OLS / means / variances."""
     import numpy as np
 
+    if not _complete(df, cols):
+        return {"n": int(len(df)), "cols": ["1", *cols], "matrix": None, "complete": False}
     X = np.column_stack([np.ones(len(df))] + [df[c].to_numpy(float) for c in cols])
-    return {"n": int(len(df)), "cols": ["1", *cols], "matrix": (X.T @ X).tolist()}
+    return {"n": int(len(df)), "cols": ["1", *cols], "matrix": (X.T @ X).tolist(), "complete": True}
 
 
 def irls_step(df: pd.DataFrame, outcome: str, features: list[str], beta: list[float]) -> dict:
@@ -90,6 +98,8 @@ def irls_step(df: pd.DataFrame, outcome: str, features: list[str], beta: list[fl
     the TRE process, to produce this aggregate; only n/grad/hess ever leave."""
     import numpy as np
 
+    if not _complete(df, [outcome, *features]):
+        return {"n": int(len(df)), "complete": False, "grad": None, "hess": None}
     X = np.column_stack([np.ones(len(df))] + [df[c].to_numpy(float) for c in features])
     y = df[outcome].to_numpy(float)
     eta = X @ np.asarray(beta, dtype=float)
@@ -97,4 +107,4 @@ def irls_step(df: pd.DataFrame, outcome: str, features: list[str], beta: list[fl
     w = np.clip(p * (1 - p), 1e-6, None)
     grad = X.T @ (y - p)
     hess = X.T @ (X * w[:, None])
-    return {"n": int(len(df)), "grad": grad.tolist(), "hess": hess.tolist()}
+    return {"n": int(len(df)), "complete": True, "grad": grad.tolist(), "hess": hess.tolist()}

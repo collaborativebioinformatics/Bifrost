@@ -26,10 +26,8 @@ Implemented:
 | Server side | `server/aggregate.py` (associative merge), `server/disclosure_check.py`, `server/overseer_queue.py` (CLI); outputs under `server/out/` (gitignored, `SERVER_OUT` env) |
 | Wire contracts | `adapters/base.py` (`AggregateResult`, `VariableStats`, `Gram` — the TRE→server payload, strict Pydantic), `server/schemas.py` (`MergedResult`, `ReleasedResult`, HTTP API models); JSON Schema + OpenAPI in `docs/schemas/` via `scripts/export_schemas.py` (a test fails when stale) |
 | HTTP API + UI | `server/api.py` serves the researcher UI contract (`/metadata`, `/examples/{name}`, `POST /run`, `/run/{id}`, `/overseer`, `/overseer/{hash}/{approve,reject}`, `/audit`) and the convenience endpoints (`/allele-frequency`, `/linear-regression`, `/logistic-regression`); `frontend/` (Next.js) is wired to it — run API on :8500, UI on :3000 |
-| Ops scripts | `scripts/local_federation.sh` (real FLARE, no Docker), `scripts/provision.sh`, `scripts/onboard_tre.sh`, `scripts/start_server.sh`, `scripts/start_client.sh`, `scripts/run_job.py` (`--mode simulator|prod`, `--fedavg`), `scripts/run_local.py`, `scripts/verify.py`, `scripts/scale_sim.py` → `docs/scaling.png` |
-| Tests | `tests/` — 111 fast + 4 FLARE-simulator (`-m slow`) |
-
-A real (non-simulator) FLARE federation runs two verified ways: `scripts/local_federation.sh` with separate processes over mTLS, and Docker via `scripts/provision.sh && scripts/up.sh --flare`; both support the example specs, overseer flow, and partial-site coverage. The Next.js UI is implemented in `frontend/`; the Python API service exposing its documented contract remains separate. Not yet run: clients on remote hosts (Gefion / NextCloud).
+| Ops scripts | `scripts/local_federation.sh` (real FLARE, no Docker), `scripts/provision.sh`, `scripts/limit_server_jobs.py` (both provisioning scripts run it: server kit runs one job at a time, `max_jobs: 1`), `scripts/onboard_tre.sh`, `scripts/start_server.sh`, `scripts/start_client.sh`, `scripts/run_job.py` (`--mode simulator|prod`, `--fedavg`), `scripts/run_local.py`, `scripts/verify.py`, `scripts/scale_sim.py` → `docs/scaling.png` |
+| Tests | `tests/` — 149 fast + 4 FLARE-simulator (`-m slow`); `frontend/test/` (`npm test`) |
 
 `docs/architecture/flowchart.drawio` is the editable source for the implemented-flow overview. When changing that overview, regenerate both `docs/architecture/flowchart_drawio.svg` and `docs/architecture/flowchart.png` from it.
 
@@ -45,7 +43,7 @@ Confirm a path, command, module, or function exists before referencing it — th
 
 Checks that exist and were confirmed working on 2026-09-17:
 
-- `python -m pytest -q -m "not slow"` — 111 passed, ~4 s, no network.
+- `python -m pytest -q -m "not slow"` — 149 tests as of 2026-09-25, ~6 s, no network.
 - `python -m pytest -q -m slow` — 4 passed, ~75 s; starts the TREs as local processes and runs FLARE simulator jobs (allele_freq, straggler, FedAvg linreg, Newton-Raphson logreg).
 - `scripts/dev_tres.py` + `scripts/run_job.sh spec/examples/<spec>.json` — simulator end-to-end with `scripts/verify.py` against ground truth.
 - `scripts/local_federation.sh up && scripts/local_federation.sh job spec/examples/allele_freq.json` — real FLARE server + 3 clients on localhost; ~12 s per job.
@@ -53,7 +51,7 @@ Checks that exist and were confirmed working on 2026-09-17:
 - `scripts/onboard_tre.sh <id>` — adds a site, regenerates, provisions, packs a kit (~2 s).
 - `scripts/provision.sh && scripts/up.sh --flare` — builds 7 images (~5 min cold), starts everything, checks each TRE's `/health` from its own FLARE client container, asserts no TRE container can reach the public internet. Then `docker compose exec flare-server python scripts/run_job.py --mode prod --admin-kit "/workspace/federated_apis/prod_00/admin@ncfh.org" spec/examples/allele_freq.json` (~11 s) and `python scripts/verify.py server/out/<spec_hash>/result.json` on the host. Verified 2026-09-17 with Docker Desktop 29.8 on macOS.
 
-CI: `.github/workflows/ci.yml` runs `python -m pytest -q -m "not slow"` on every push and pull request, against Python 3.11 and 3.12. No linter or formatter is configured.
+CI: `.github/workflows/ci.yml` runs on every push and pull request: a merge-conflict-marker check over tracked files, `python -m pytest -q -m "not slow"` against Python 3.11 and 3.12, and a frontend job (Node 24: `npm ci`, `npm test`, `npm run build`). No linter or formatter is configured.
 
 For documentation changes, check source accuracy, links, and `git diff --check`.
 

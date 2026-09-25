@@ -28,6 +28,7 @@ case "${1:-}" in
     $PY scripts/gen_sites.py > /dev/null
     rm -rf $FED/workspace/$PROJECT/prod_*
     $PY -m nvflare.lighter.provision -p flare/project.yml -w $FED/workspace --force > /dev/null
+    $PY scripts/limit_server_jobs.py "$KITS" > /dev/null
     git checkout -q docker-compose.yml flare/project.yml 2>/dev/null || true   # generated files stay as in sites.yaml
     nohup $PY scripts/dev_tres.py --port 8100 > $FED/tres.log 2>&1 &
     echo $! > $FED/tres.pid

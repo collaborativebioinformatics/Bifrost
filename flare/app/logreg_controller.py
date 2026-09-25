@@ -62,10 +62,9 @@ class FedLogregController(Controller):
             return
 
         sites = sorted(replies)
-        n_per_site = {s: replies[s]["n"] for s in sites}
         features = self.spec.variables
         beta = [0.0] * (len(features) + 1)
-        history, missing_rounds = [], {}
+        history, missing_rounds, round_contributions = [], {}, {}
 
         for r in range(1, self.rounds + 1):
             data = Shareable()
@@ -76,7 +75,7 @@ class FedLogregController(Controller):
             miss = [s for s in sites if s not in replies]
             if miss:
                 missing_rounds[str(r)] = miss  # JSON object keys, as the result contract requires
-            if len(replies) < self.min_clients:
+            if len(replies) < max(self.min_clients, 2):  # one site's round would be its own local fit
                 self.log_error(fl_ctx, f"round {r}: only {len(replies)} updates; stopping early")
                 break
 
@@ -86,6 +85,7 @@ class FedLogregController(Controller):
             beta = new_beta
             history.append({"round": r, "sites": len(replies), "max_delta": delta,
                             "coef": dict(zip(["intercept", *features], beta))})
+            round_contributions[str(r)] = {s: rep["step"]["n"] for s, rep in replies.items()}
             self.log_info(fl_ctx, f"round {r}/{self.rounds}: {len(replies)} sites, max|Δβ|={delta:.2e}")
             if delta < self.tol:
                 break
@@ -95,15 +95,17 @@ class FedLogregController(Controller):
             self.log_error(fl_ctx, "no Newton round completed; not recording a result")
             return
 
+        # The fit's sample is the sites whose rows entered at least one round, not every site that joined.
+        fitted = {s: n for steps in round_contributions.values() for s, n in steps.items()}
         merged = {
-            "sites_expected": expected, "sites_reported": sites, "sites_missing": [s for s in expected if s not in sites],
-            "coverage": f"{len(sites)}/{len(expected)} sites", "n": sum(n_per_site.values()), "n_per_site": n_per_site,
+            "sites_expected": expected, "sites_reported": sorted(fitted), "sites_missing": [s for s in expected if s not in fitted],
+            "coverage": f"{len(fitted)}/{len(expected)} sites", "n": sum(fitted.values()), "n_per_site": fitted,
             "rejected_per_site": {}, "spec_hash": self.spec.spec_hash(), "sites_missing_rounds": missing_rounds,
             "method": {"mode": "newton_raphson", "rounds": len(history), "ridge": self.ridge, "tol": self.tol},
             "stats": {"_logreg": {"logreg": {"outcome": self.spec.outcome,
                                               "coef": dict(zip(["intercept", *features], beta))},
-                                  "n": sum(n_per_site.values()), "history": history}},
-            "contributions": {},
+                                  "n": sum(fitted.values()), "history": history}},
+            "contributions": {"_rounds": round_contributions},  # who actually answered each round
         }
         check = disclosure_check.check(merged, self.spec.model_dump(), overseer_queue.release_log_path())
         run_dir = overseer_queue.record(self.spec.model_dump(), merged, check)

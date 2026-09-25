@@ -8,21 +8,30 @@
 Files (under SERVER_OUT, default server/out/):
   overseer_queue.json   pending items
   release_log.jsonl     every release decision (auto-OK, approved, rejected), keyed by spec hash
-  <spec_hash>/result.json          merged result (written for every run)
-  <spec_hash>/released.json        only after OK / approval -- this is what leaves the server
+  <spec_hash>/result.json          merged result of the latest run of that spec
+  <spec_hash>/released.json        only while the latest run is OK / approved -- what left the server
+
+One process owns a SERVER_OUT: RELEASE_LOCK serialises this process's check ->
+record and decisions, and queue writes are atomic, but nothing coordinates two
+processes (API, FLARE server, this CLI) writing the same directory.
 """
 from __future__ import annotations
 
 import argparse
 import json
 import os
+import secrets
 import sys
+import threading
 import time
 from pathlib import Path
 
 from server.schemas import MergedResult, ReleasedResult
 
 ROOT = Path(__file__).resolve().parent.parent
+# Held across disclosure check -> record (the check reads the release log that record
+# and decide append to) and around every decision. Re-entrant: record/decide take it too.
+RELEASE_LOCK = threading.RLock()
 
 
 def out_dir() -> Path:
@@ -44,8 +53,21 @@ def _load_queue() -> list[dict]:
     return json.loads(p.read_text()) if p.exists() else []
 
 
+def _write_atomic(path: Path, text: str) -> None:
+    """Readers see the old file or the new one, never a partial write. The temp file is
+    opened normally (not mkstemp's 0600) so the result keeps the usual umask permissions."""
+    tmp = path.with_name(f".{path.name}.{secrets.token_hex(8)}.tmp")
+    try:
+        with open(tmp, "x") as f:
+            f.write(text)
+        os.replace(tmp, path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+
+
 def _save_queue(q: list[dict]) -> None:
-    queue_path().write_text(json.dumps(q, indent=2))
+    _write_atomic(queue_path(), json.dumps(q, indent=2))
 
 
 def _now() -> str:
@@ -53,8 +75,19 @@ def _now() -> str:
 
 
 def _releasable(merged: dict) -> dict:
-    """What actually leaves: the ReleasedResult projection (no per-site contributions)."""
-    return ReleasedResult.model_validate({k: v for k, v in merged.items() if k != "contributions"}).model_dump(exclude_none=True)
+    """What actually leaves: the ReleasedResult projection -- no per-site contributions, and each
+    per-site suppression named by its location only (the reason detail holds the small count)."""
+    released = {k: v for k, v in merged.items() if k != "contributions"}
+    released["rejected_per_site"] = {site: [reason.split(":", 1)[0] for reason in reasons]
+                                     for site, reasons in merged.get("rejected_per_site", {}).items()}
+    return ReleasedResult.model_validate(released).model_dump(exclude_none=True)
+
+
+def latest_log_entry(spec_hash: str) -> dict | None:
+    """The newest release-log line for a spec hash (QUEUED / RELEASED / REJECTED), if any."""
+    p = release_log_path()
+    lines = p.read_text().splitlines() if p.exists() else []
+    return next((e for e in map(json.loads, reversed(lines)) if e.get("spec_hash") == spec_hash), None)
 
 
 def log_release(spec: dict, merged: dict, check: dict, decision: str, note: str = "", by: str = "auto") -> None:
@@ -70,37 +103,44 @@ def log_release(spec: dict, merged: dict, check: dict, decision: str, note: str 
 
 def record(spec: dict, merged: dict, check: dict) -> Path:
     """Called by the FLARE controller / HTTP API after the disclosure check. Returns the run dir.
-    The merged result must satisfy the MergedResult contract; a shape drift fails here, loudly."""
+    The merged result must satisfy the MergedResult contract; a shape drift fails here, loudly.
+    The run dir and queue describe this (latest) run of the spec hash: an earlier run's
+    release or pending queue entry does not survive it."""
     merged = MergedResult.model_validate(merged).model_dump(exclude_none=True)
     d = out_dir() / (merged.get("spec_hash") or "unknown")
-    d.mkdir(parents=True, exist_ok=True)
-    (d / "spec.json").write_text(json.dumps(spec, indent=2))
-    (d / "result.json").write_text(json.dumps(merged, indent=2))
-    (d / "check.json").write_text(json.dumps(check, indent=2))
-    if check["decision"] == "OK":
-        (d / "released.json").write_text(json.dumps(_releasable(merged), indent=2))
-        log_release(spec, merged, check, "RELEASED")
-    else:
+    with RELEASE_LOCK:
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "spec.json").write_text(json.dumps(spec, indent=2))
+        (d / "result.json").write_text(json.dumps(merged, indent=2))
+        (d / "check.json").write_text(json.dumps(check, indent=2))
         q = [i for i in _load_queue() if i["spec_hash"] != merged.get("spec_hash")]
-        q.append({"spec_hash": merged.get("spec_hash"), "queued": _now(), "project_id": spec.get("project_id"),
-                  "analysis_type": spec.get("analysis_type"), "reasons": check["reasons"], "dir": str(d)})
+        if check["decision"] == "OK":
+            _write_atomic(d / "released.json", json.dumps(_releasable(merged), indent=2))
+            log_release(spec, merged, check, "RELEASED")
+        else:
+            (d / "released.json").unlink(missing_ok=True)
+            q.append({"spec_hash": merged.get("spec_hash"), "queued": _now(), "project_id": spec.get("project_id"),
+                      "analysis_type": spec.get("analysis_type"), "reasons": check["reasons"], "dir": str(d)})
+            log_release(spec, merged, check, "QUEUED")
         _save_queue(q)
-        log_release(spec, merged, check, "QUEUED")
     return d
 
 
 def decide(spec_hash: str, approve: bool, note: str, by: str) -> Path:
     """Approve or reject a queued result. Raises KeyError if it is not queued."""
-    q = _load_queue()
-    item = next((i for i in q if i["spec_hash"] == spec_hash), None)
-    if item is None:
-        raise KeyError(f"{spec_hash}: not in queue")
-    d = Path(item["dir"])
-    spec, merged, check = (json.loads((d / f).read_text()) for f in ("spec.json", "result.json", "check.json"))
-    if approve:
-        (d / "released.json").write_text(json.dumps(_releasable(merged), indent=2))
-    log_release(spec, merged, check, "RELEASED" if approve else "REJECTED", note, by)
-    _save_queue([i for i in q if i["spec_hash"] != spec_hash])
+    with RELEASE_LOCK:
+        q = _load_queue()
+        item = next((i for i in q if i["spec_hash"] == spec_hash), None)
+        if item is None:
+            raise KeyError(f"{spec_hash}: not in queue")
+        d = Path(item["dir"])
+        spec, merged, check = (json.loads((d / f).read_text()) for f in ("spec.json", "result.json", "check.json"))
+        if approve:
+            _write_atomic(d / "released.json", json.dumps(_releasable(merged), indent=2))
+        else:
+            (d / "released.json").unlink(missing_ok=True)
+        log_release(spec, merged, check, "RELEASED" if approve else "REJECTED", note, by)
+        _save_queue([i for i in q if i["spec_hash"] != spec_hash])
     return d
 
 

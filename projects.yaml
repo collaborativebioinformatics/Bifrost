@@ -1,10 +1,14 @@
 # Safe Projects allow-list. An AnalysisSpec whose project_id is not listed here
 # is rejected by every adapter before anything is computed (and audited as such).
 # `sites: all` or a list of tre_ids that have approved the project.
+# `min_cell_size` is the project's disclosure floor: a request may ask for a
+# larger k, never a smaller one (default 5 when a project omits it).
 projects:
   ncfh-2026-demo:
     description: NCFH 2026 hackathon demo -- allele frequency + linear regression
     sites: all
+    min_cell_size: 5
   hackathon-test:
     description: Adapter development and CI
     sites: all
+    min_cell_size: 5

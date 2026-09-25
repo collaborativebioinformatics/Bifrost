@@ -29,4 +29,4 @@ class RestAdapter(HttpAdapter):
 
     def irls_step(self, outcome_col: str, feature_cols: list[str], beta: list[float], filters: dict) -> dict:
         r = self._post("/irls", {"outcome": outcome_col, "features": feature_cols, "beta": beta, "filters": filters})
-        return {"n": r["n"], "grad": r["grad"], "hess": r["hess"]}
+        return {"n": r["n"], "complete": r.get("complete"), "grad": r.get("grad"), "hess": r.get("hess")}

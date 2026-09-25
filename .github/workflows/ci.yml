@@ -6,6 +6,14 @@ on:
   pull_request:
 
 jobs:
+  conflict-markers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for merge conflict markers
+        run: "! git grep -nE '^(<<<<<<<|>>>>>>>)( |$)|^=======$'"
+
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -27,3 +35,27 @@ jobs:
 
       - name: Run fast test suite (no network, no Docker, no FLARE simulator)
         run: python -m pytest -q -m "not slow"
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run tests
+        working-directory: frontend
+        run: npm test
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build

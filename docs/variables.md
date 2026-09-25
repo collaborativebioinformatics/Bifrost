@@ -29,7 +29,7 @@ Twenty variants, `snp_rs001` through `snp_rs020`, each a minor-allele dosage of 
 | `gefion` | `SNP_<n>` | `SNP_1` |
 | `brev` | `g_rs<nnn>` | `g_rs001` |
 
-The `rs001`–`rs020` identifiers are synthetic placeholders, not real dbSNP rsIDs. Allele frequency is computed as `sum(dosage) / (2 × n)`; that denominator fixes ploidy at 2 and says nothing about orientation. Which allele the dosage counts is set by the schema and the generator: `harmonisation/canonical.yaml` describes every column as minor-allele dosage, and the generator draws `Binomial(2, p)` with `p ≤ 0.5` at every site, so the minor allele stays the minor allele throughout the synthetic cohort. Real cohorts give no such guarantee. The synthetic data contains no missing values, so a missing-value encoding has never been exercised.
+The `rs001`–`rs020` identifiers are synthetic placeholders, not real dbSNP rsIDs. Allele frequency is computed as `sum(dosage) / (2 × n)`; that denominator fixes ploidy at 2 and says nothing about orientation. Which allele the dosage counts is set by the schema and the generator: `harmonisation/canonical.yaml` describes every column as minor-allele dosage, and the generator draws `Binomial(2, p)` with `p ≤ 0.5` at every site, so the minor allele stays the minor allele throughout the synthetic cohort. Real cohorts give no such guarantee. The synthetic data contains no missing values. Regression analyses reject a site whose selected rows miss any regression column (tested with blanked values); a missing-value encoding in real source data has never been exercised.
 
 ## Synthetic cohort
 

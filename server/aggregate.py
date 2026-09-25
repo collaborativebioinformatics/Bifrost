@@ -26,7 +26,9 @@ def combine(results: Iterable[AggregateResult], expected_sites: list[str] | None
         "rejected_per_site": {r.tre_id: r.rejected for r in results if r.rejected},
         "spec_hash": next((r.spec_hash for r in results if r.spec_hash), ""),
         "stats": {},
-        "contributions": {},  # var -> cell -> {site: count}; used by the dominance check, not released
+        # var -> cell -> {site: count}; used by the dominance check, never released. Cells are
+        # genotype levels, "count" (observed values of a scalar variable) or "n" (regression sample)
+        "contributions": {},
     }
     variables = sorted({v for r in results for v in r.stats})
     for v in variables:
@@ -49,6 +51,7 @@ def combine(results: Iterable[AggregateResult], expected_sites: list[str] | None
             agg.update(count=int(n), sum=s, sum_sq=ss, mean=s / n if n else None,
                        var=(ss - s * s / n) / (n - 1) if n > 1 else None,
                        min=min(p["min"] for p in parts.values()), max=max(p["max"] for p in parts.values()))
+            out["contributions"].setdefault(v, {})["count"] = {site: int(p["count"]) for site, p in parts.items()}
         if parts and all("gram" in p for p in parts.values()):
             G = sum(np.array(p["gram"]["matrix"]) for p in parts.values())
             cols = next(iter(parts.values()))["gram"]["cols"]
@@ -59,5 +62,6 @@ def combine(results: Iterable[AggregateResult], expected_sites: list[str] | None
             except np.linalg.LinAlgError as e:
                 agg["ols"] = {"error": str(e)}
             agg["n"] = int(sum(p["gram"]["n"] for p in parts.values()))
+            out["contributions"].setdefault(v, {})["n"] = {site: int(p["gram"]["n"]) for site, p in parts.items()}
         out["stats"][v] = agg
     return out

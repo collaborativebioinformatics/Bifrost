@@ -602,6 +602,7 @@
         "running",
         "completed",
         "flagged",
+        "rejected",
         "failed"
       ],
       "title": "Status",
@@ -640,7 +641,9 @@
         {
           "enum": [
             "OK",
-            "FLAGGED"
+            "FLAGGED",
+            "APPROVED",
+            "REJECTED"
           ],
           "type": "string"
         },

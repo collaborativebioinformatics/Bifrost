@@ -11,7 +11,7 @@
   <a href="https://github.com/collaborativebioinformatics/Bifrost/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/collaborativebioinformatics/Bifrost/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Python 3.11+" src="https://img.shields.io/badge/python-3.11%20%7C%203.12-3776AB?logo=python&logoColor=white">
   <img alt="NVIDIA FLARE 2.9" src="https://img.shields.io/badge/NVIDIA%20FLARE-2.9-76B900?logo=nvidia&logoColor=white">
-  <img alt="tests" src="https://img.shields.io/badge/tests-111%20fast%20%2B%204%20simulator-1FB89A">
+  <img alt="tests" src="https://img.shields.io/badge/tests-149%20fast%20%2B%204%20simulator-1FB89A">
   <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-lightgrey"></a>
 </p>
 
@@ -57,7 +57,7 @@ cd frontend && npm install && npm run dev                           # Next.js UI
 The fast suite needs no network; the FLARE simulator suite is marked `slow`:
 
 ```sh
-python -m pytest -q -m "not slow"    # 111 tests, ~3 s
+python -m pytest -q -m "not slow"    # 149 tests, ~6 s
 python -m pytest -q -m slow          # 4 tests, ~70 s
 ```
 
@@ -70,7 +70,7 @@ python scripts/dev_tres.py
 python scripts/run_local.py spec/examples/allele_freq.json
 ```
 
-**FLARE simulator** — one process, real controllers and executors. Each run writes `server/out/<spec_hash>/result.json`; `released.json` appears only when the disclosure check passes or an overseer approves, and is what would leave the server. Directories are keyed by spec hash, so an earlier `released.json` can outlive a later flagged run of the same spec — `check.json` holds the current decision.
+**FLARE simulator** — one process, real controllers and executors. Each run writes `server/out/<spec_hash>/result.json`; `released.json` appears only when the disclosure check passes or an overseer approves, and is what would leave the server. Directories are keyed by spec hash and describe the latest run: a flagged rerun withdraws an earlier `released.json`, a released rerun clears a stale queue entry, and the release log keeps the history.
 
 ```sh
 scripts/run_job.sh spec/examples/allele_freq.json
@@ -102,9 +102,9 @@ scripts/up.sh --down
 1. **Request** — a JSON `AnalysisSpec` in canonical variable names; hashed, and that hash keys every log.
 2. **Dispatch** — the FLARE server sits outside every TRE; clients dial **out** over mTLS gRPC. No inbound ports in a secure environment.
 3. **Local execution** — the FLARE client loads the adapter for its own `tre_id` and speaks the TRE's native API (REST, DataSHIELD-style, SQL gateway). Adapters can ask only for schema metadata and five aggregate primitives: `count`, `describe`, `value_counts`, `gram`, `irls_step`.
-4. **Safe output** — inside the TRE, before the FLARE client sees anything: project allow-list, aggregate allow-list, `n < k` ⇒ nothing leaves, cell `< k` suppressed (and anything derivable from it), one audit line per request and per round.
+4. **Safe output** — in the adapter, before anything leaves it: inside the TRE on the FLARE path (on the direct-API demo path the adapter runs in the API server process, so unfiltered aggregates reach that process first). Project allow-list, aggregate allow-list, `k` = the request's `min_cell_size` raised to the project's floor, `n < k` ⇒ nothing leaves, a variable observed in fewer than `k` rows ⇒ nothing about it leaves, cell `< k` suppressed (and anything derivable from it), regression inputs must be complete (a missing value rejects the site), one audit line per request and per round, accepted or rejected.
 5. **Aggregation** — everything the server merges is a sum (counts, Gram matrices, gradients and Hessians, n-weighted β), so merging is exact, order-free and straggler-tolerant: `min_clients` + `wait_time`, never wait-for-all; a missing site is reported as `2/3 sites`.
-6. **Disclosure check and release** — on the merged table: minimum cell size, dominance, ≥ 2 sites, site-level suppressions, differencing against earlier releases. Pass ⇒ `released.json`; flag ⇒ overseer queue, human decision logged.
+6. **Disclosure check and release** — on the merged table: minimum cell size, dominance (per table cell, per variable's observed values, per regression sample and per released federated round), ≥ 2 sites (overall and in every released round), site-level suppressions, differencing against earlier releases. Pass ⇒ `released.json`; flag ⇒ overseer queue, human decision logged.
 
 [Edit the diagram](docs/architecture/flowchart.drawio) · [Original external diagram](https://drive.google.com/file/d/1j9t8W-cFVBYgHGrFrLGP5keU2vaFtE-l/view?usp=sharing)
 

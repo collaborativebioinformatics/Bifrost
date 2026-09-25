@@ -10,9 +10,9 @@
     "test": "node --import ./register-jsx-loader.mjs --test"
   },
   "dependencies": {
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "lucide-react": "latest"
+    "next": "16.3.5",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "lucide-react": "1.47.0"
   }
 }

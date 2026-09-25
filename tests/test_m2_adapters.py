@@ -153,3 +153,49 @@ def test_result_roundtrips_as_dict(adapters):
     spec = AnalysisSpec(analysis_type="allele_freq", variables=["snp_rs001"], project_id=PROJECT)
     r = next(iter(adapters.values())).run(spec)
     assert AggregateResult.from_dict(json.loads(json.dumps(r.to_dict()))) == r
+
+
+def test_policy_floor_overrides_requested_min_cell_size(adapters):
+    spec = AnalysisSpec(analysis_type="allele_freq", variables=["snp_x"], min_cell_size=1, project_id=PROJECT)
+    r = safe_output.filter("x", "r", spec, 53, {"snp_x": {"genotype_counts": {"0": 50, "1": 3, "2": 0}}})
+    assert r.stats["snp_x"].genotype_counts == {"0": 50}
+    assert "snp_x.genotype_counts.1:count=3<5" in r.rejected
+    assert _audit_lines("x")[-1]["min_cell_size"] == 5
+
+
+# ---- missing values: regression inputs must be complete -------------------------------
+def _client_with_missing_values(site, tmp_path, canonical):
+    """This site's real data with a few values of one variable blanked out."""
+    import importlib
+
+    import pandas as pd
+    from fastapi.testclient import TestClient
+
+    from harmonisation import local_name
+
+    df = pd.read_csv(ROOT / "data" / "sites" / f"{site['tre_id']}.csv")
+    df.loc[df.index[:3], local_name(canonical, site["tre_id"])] = float("nan")
+    path = tmp_path / f"{site['tre_id']}.csv"
+    df.to_csv(path, index=False)
+    return TestClient(importlib.import_module(f"tres.{site['adapter']}.app").create_app(site["tre_id"], str(path)))
+
+
+def test_incomplete_regression_inputs_are_rejected_on_every_backend(adapters, sites, tmp_path):
+    feats, outcome = GT["ols"]["features"], GT["ols"]["outcome"]
+    spec = AnalysisSpec(analysis_type="fed_linreg", variables=feats, outcome=outcome, project_id=PROJECT)
+    for s in sites:
+        a = registry.load(s["tre_id"], client=_client_with_missing_values(s, tmp_path, "age"))
+        r = a.run(spec)
+        assert (r.n, r.stats, r.rejected) == (0, {}, ["_linreg.gram:incomplete_inputs"]), s["tre_id"]
+        assert _audit_lines(s["tre_id"])[-1]["decision"] == "REJECTED"
+        step = a.irls_step(a.local("case"), [a.local(c) for c in feats], [0.0] * (len(feats) + 1), {})
+        assert step["complete"] is False and step.get("grad") is None, s["tre_id"]
+
+
+def test_a_variable_with_fewer_than_k_observed_values_releases_nothing(adapters):
+    spec = AnalysisSpec(analysis_type="fed_stats", variables=["age", "snp_x"], project_id=PROJECT)
+    raw = {"age": {"count": 1, "sum": 70.0, "sum_sq": 4900.0, "min": 70.0, "max": 70.0},  # one observed age
+           "snp_x": {"genotype_counts": {}}}  # no observed genotype at all
+    r = safe_output.filter("x", "r", spec, 10, raw)
+    assert r.stats["age"].present() == {} and r.stats["snp_x"].present() == {}
+    assert r.rejected == ["age.*:observed=1<5", "snp_x.*:observed=0<5"]

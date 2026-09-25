@@ -140,7 +140,8 @@ def test_logistic_regression_site_down_for_whole_request(api, sites):
 def test_logistic_regression_site_fails_mid_rounds(api, sites):
     """A site that passes the gate but then goes dark partway through Newton's
     method should not corrupt the run: it's dropped from later rounds' sums and
-    reported in sites_failed, and the fit still converges close to ground truth
+    reported in sites_failed (and, having contributed no round, it is not among the
+    fit's sites), and the fit still converges close to ground truth
     using the sites that kept answering."""
     client, failed, called = api
     bad = sites[-1]["tre_id"]
@@ -164,7 +165,7 @@ def test_logistic_regression_site_fails_mid_rounds(api, sites):
     assert response.status_code == 200
     body = assert_safe(response, True)
     assert body["decision"] == "OK"
-    assert bad in body["sites_reported"]  # it did gate in successfully
+    assert bad not in body["sites_reported"]  # gated in, but no round used its rows
     assert body["sites_failed"] == {bad: "unavailable"}
     coef = body["result"]["stats"]["_logreg"]["logreg"]["coef"]
     assert max(abs(coef[k] - GT["logreg"]["coef"][k]) for k in coef) < 0.5  # close, not exact: 2/3 sites
@@ -195,7 +196,7 @@ def test_logistic_regression_flagged_when_rounds_lose_sites(api, sites):
         monkeypatch.undo()
     assert response.status_code == 200
     body = assert_safe(response)
-    assert body["decision"] == "FLAGGED" and body["reasons"] == ["analysis"]
+    assert body["decision"] == "FLAGGED" and body["reasons"] == ["min_sites"]  # no site contributed a round
     assert body["sites_failed"] == dict.fromkeys(bad, "unavailable")
 
 
@@ -406,3 +407,63 @@ with TestClient(app) as client:
     assert client.get("/health").json() == {"status": "ok"}
 '''
     subprocess.run([sys.executable, "-c", script], cwd=ROOT, check=True)
+
+
+def test_logistic_regression_audits_every_round_at_every_site(api, sites):
+    """The direct API releases each Newton round's gradient/Hessian through the same
+    Safe Output step the FLARE executor uses: one audit line per site per round."""
+    import os
+    from pathlib import Path
+
+    client = api[0]
+    body = client.post("/logistic-regression", json={
+        "features": GT["logreg"]["features"], "target": GT["logreg"]["outcome"], "project_id": PROJECT}).json()
+    assert body["decision"] == "OK"
+    rounds = body["result"]["method"]["rounds"]
+    audit = [json.loads(line) for line in (Path(os.environ["AUDIT_DIR"]) / "audit.jsonl").read_text().splitlines()]
+    per_round = [e for e in audit if e["spec_hash"] == body["spec_hash"] and e["decision"] == "OK:newton_raphson_round"]
+    assert sorted(e["tre_id"] for e in per_round) == sorted(s["tre_id"] for s in sites for _ in range(rounds))
+    run = json.loads((overseer_queue.out_dir() / body["spec_hash"] / "result.json").read_text())
+    assert run["contributions"]["_rounds"] == {str(r): GT["n_per_site"] for r in range(1, rounds + 1)}
+
+
+def test_logistic_regression_fit_counts_only_contributing_sites(api, sites):
+    """A site that passes the gate but is rejected by Safe Output in every round put no
+    rows into the fit: it is not among the fit's sites and not in its n."""
+    client = api[0]
+    bad = sites[-1]["tre_id"]
+    original = registry.load
+
+    def load(tre_id):
+        adapter = original(tre_id)
+        if tre_id == bad:
+            adapter.irls_step = lambda *args, **kwargs: {"n": GT["n_per_site"][bad], "complete": False,
+                                                         "grad": None, "hess": None}
+        return adapter
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(registry, "load", load)
+    try:
+        body = client.post("/logistic-regression", json={
+            "features": GT["logreg"]["features"], "target": GT["logreg"]["outcome"], "project_id": PROJECT}).json()
+    finally:
+        monkeypatch.undo()
+    kept = sorted(s["tre_id"] for s in sites if s["tre_id"] != bad)
+    assert body["decision"] == "OK" and body["sites_failed"] == {bad: "rejected"}
+    assert sorted(body["sites_reported"]) == kept
+    result = body["result"]
+    assert sorted(result["n_per_site"]) == kept
+    assert result["n"] == result["stats"]["_logreg"]["n"] == sum(GT["n_per_site"][t] for t in kept)
+
+
+def test_fed_stats_is_valid_only_with_observed_values():
+    from spec.analysis_spec import AnalysisSpec
+
+    genotype = AnalysisSpec(analysis_type="fed_stats", variables=["snp_rs001"], project_id=PROJECT)
+    empty = {"genotype_counts": {}, "allele_counts": {"minor": 0, "major": 0, "n_alleles": 0}}
+    assert not analysis_service._valid_statistics({"stats": {"snp_rs001": empty}}, genotype)
+    assert analysis_service._valid_statistics({"stats": {"snp_rs001": {"genotype_counts": {"0": 50, "1": 9}}}}, genotype)
+    age = AnalysisSpec(analysis_type="fed_stats", variables=["age", "bmi"], project_id=PROJECT)
+    observed = {"count": 10, "sum": 500.0, "sum_sq": 25100.0, "mean": 50.0, "var": 11.1, "min": 40.0, "max": 60.0}
+    assert not analysis_service._valid_statistics({"stats": {"age": observed, "bmi": {"count": 0}}}, age)
+    assert analysis_service._valid_statistics({"stats": {"age": observed, "bmi": observed}}, age)
