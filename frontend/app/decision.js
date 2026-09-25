@@ -14,7 +14,9 @@ export async function decideAndRefresh(api, { item, decision, runId, run }, { se
   setNotice(notice)
   if (!runId || run?.spec_hash !== specHash) return
   try {
-    setRun(await api(`/run/${runId}`))
+    const reloaded = await api(`/run/${runId}`)
+    // a run submitted while the reload was in flight owns the view now; keep it
+    setRun((current) => (current?.run_id === runId ? reloaded : current))
   } catch (error) {
     // the decision is recorded; a failed re-read must not hide that
     setNotice(`${notice} The run could not be reloaded: ${error.message}`)
