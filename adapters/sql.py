@@ -66,14 +66,19 @@ class SqlAdapter(HttpAdapter):
                 raise ValueError(f"bad column {c!r}")
         terms = ["1", *cols]
         exprs = [f"sum(({a})*({b}))" for a in terms for b in terms]
-        row = self._sql(f"SELECT count(*), {', '.join(exprs)} FROM cohort{where(filters)}")[0]
-        k = len(terms)
-        vals = [float(v) for v in row[1:]]
-        return {"n": int(row[0]), "cols": terms, "matrix": [vals[i * k:(i + 1) * k] for i in range(k)]}
+        # SUM skips NULLs term by term, so completeness is counted in the same query:
+        # an incomplete cohort's sums would each cover a different set of rows.
+        complete = f"count(CASE WHEN {' AND '.join(f'{c} IS NOT NULL' for c in cols)} THEN 1 END)"
+        row = self._sql(f"SELECT count(*), {complete}, {', '.join(exprs)} FROM cohort{where(filters)}")[0]
+        n, k = int(row[0]), len(terms)
+        if int(row[1]) != n:
+            return {"n": n, "cols": terms, "matrix": None, "complete": False}
+        vals = [float(v) for v in row[2:]]
+        return {"n": n, "cols": terms, "matrix": [vals[i * k:(i + 1) * k] for i in range(k)], "complete": True}
 
     def irls_step(self, outcome_col: str, feature_cols: list[str], beta: list[float], filters: dict) -> dict:
         # Nonlinear per-row transform parameterised by beta -- not expressible as one
         # aggregating SELECT, so this goes through the gateway's dedicated /irls endpoint
         # instead of the generic SQL passthrough (same trust boundary as /schema).
         r = self._post("/irls", {"outcome": outcome_col, "features": feature_cols, "beta": beta, "filters": filters})
-        return {"n": r["n"], "grad": r["grad"], "hess": r["hess"]}
+        return {"n": r["n"], "complete": r.get("complete"), "grad": r.get("grad"), "hess": r.get("hess")}

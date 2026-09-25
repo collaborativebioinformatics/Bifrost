@@ -57,3 +57,34 @@ def test_unstandardise_roundtrip(grams):
     n, A, b = zip(*[linreg.standardised_normal_eq(g, sc["mean"], sc["std"]) for g in grams])
     beta_std = np.linalg.solve(sum(A), sum(b))
     assert np.allclose(linreg.unstandardise(beta_std, sc["mean"], sc["std"]), linreg.exact(grams), atol=1e-8)
+
+
+def test_fedavg_controller_does_not_record_a_zero_round_fit(monkeypatch, tmp_path, sites, grams):
+    """If no training round has two sites, the untouched zero start vector is not a fit."""
+    from nvflare.apis.fl_context import FLContext
+    from nvflare.apis.shareable import Shareable
+    from nvflare.apis.signal import Signal
+
+    from flare.app.linreg_controller import FedLinregController
+    from server import overseer_queue
+
+    monkeypatch.setenv("SERVER_OUT", str(tmp_path))
+    tids = [s["tre_id"] for s in sites]
+
+    def reply(**fields):
+        shareable = Shareable()
+        shareable.update(fields)
+        return shareable
+
+    def fake_round(name, data, fl_ctx, abort_signal, targets=None):
+        if name == "linreg_init":
+            return {tid: reply(moments=linreg.moments(g)) for tid, g in zip(tids, grams)}
+        upd = linreg.local_update(grams[0], data["beta"], data["mean"], data["std"], data["lr"], data["local_steps"])
+        return {tids[0]: reply(update=upd)}  # only one site ever trains
+
+    recorded = []
+    monkeypatch.setattr(overseer_queue, "record", lambda *args: recorded.append(args))
+    ctl = FedLinregController(SPEC.model_dump(), rounds=3, min_clients=1)
+    monkeypatch.setattr(ctl, "_round", fake_round)
+    ctl.control_flow(Signal(), FLContext())
+    assert recorded == []

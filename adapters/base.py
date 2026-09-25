@@ -115,13 +115,15 @@ class TREAdapter(ABC):
 
     @abstractmethod
     def gram(self, cols: list[str], filters: dict) -> dict:
-        """Cross-product matrix of [1, *cols]: {"n", "cols", "matrix"}; matrix[i][j] = sum(x_i * x_j)."""
+        """Cross-product matrix of [1, *cols]: {"n", "cols", "matrix", "complete"}; matrix[i][j] = sum(x_i * x_j).
+        `complete` is False when any row misses any of `cols`; the matrix is then meaningless (None)."""
 
     @abstractmethod
     def irls_step(self, outcome_col: str, feature_cols: list[str], beta: list[float], filters: dict) -> dict:
         """One Newton-Raphson step's worth of sufficient statistics for logistic
         regression on [1, *feature_cols] -> outcome_col, evaluated at beta:
-        {"n", "grad" (len p+1), "hess" ((p+1)x(p+1))}."""
+        {"n", "complete", "grad" (len p+1), "hess" ((p+1)x(p+1))}; grad/hess are
+        None when `complete` is False (some row misses the outcome or a feature)."""
 
     # ---- shared logic ----------------------------------------------------------------
     def local(self, canonical: str) -> str:
@@ -137,8 +139,8 @@ class TREAdapter(ABC):
         filters = self.local_filters(spec)
         n = self.count(filters)
         raw: dict[str, dict[str, Any]] = {}
-        if n < spec.min_cell_size:  # don't even compute on a cohort that can't be released
-            return safe_output.filter(self.tre_id, self.region, spec, n, raw)
+        if n < safe_output.effective_min_cell_size(spec.project_id, spec.min_cell_size):
+            return safe_output.filter(self.tre_id, self.region, spec, n, raw)  # don't compute on an unreleasable cohort
 
         if spec.analysis_type in ("allele_freq", "fed_stats"):
             for v in spec.variables:
@@ -151,6 +153,8 @@ class TREAdapter(ABC):
         elif spec.analysis_type == "fed_linreg":
             cols = [spec.outcome, *spec.variables]
             g = self.gram([self.local(c) for c in cols], filters)
+            if g.get("complete") is not True:  # missing values: reject rather than fit a silently different cohort
+                return safe_output.reject_all(self.tre_id, self.region, spec, reason="_linreg.gram:incomplete_inputs")
             raw["_linreg"] = {"gram": {"n": g["n"], "cols": ["intercept", *cols], "matrix": g["matrix"]}}
 
         return safe_output.filter(self.tre_id, self.region, spec, n, raw)

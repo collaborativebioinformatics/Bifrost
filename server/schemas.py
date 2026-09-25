@@ -139,11 +139,12 @@ class RunRequest(_Strict):
 
 class RunStatus(_Strict):
     run_id: str
-    status: Literal["queued", "running", "completed", "flagged", "failed"]
+    # a flagged run becomes completed (APPROVED, with its result) or rejected once an overseer decides
+    status: Literal["queued", "running", "completed", "flagged", "rejected", "failed"]
     submitted: str
     finished: str | None = None
     spec_hash: str | None = None
-    decision: Literal["OK", "FLAGGED"] | None = None
+    decision: Literal["OK", "FLAGGED", "APPROVED", "REJECTED"] | None = None
     reasons: list[PublicReason] = Field(default_factory=list)
     sites_expected: list[str] = Field(default_factory=list)
     sites_reported: list[str] = Field(default_factory=list)

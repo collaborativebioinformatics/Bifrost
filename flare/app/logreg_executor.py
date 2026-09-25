@@ -6,8 +6,11 @@ inside the TRE.
                   logistic regression needs a fresh evaluation at each beta.
   logreg_step  -> receive the current global beta, call the adapter's
                   irls_step primitive (a fresh, local-only computation inside
-                  the TRE at that beta), return (n, grad, hess). Each round is
-                  audited; only p+1 numbers and a (p+1)x(p+1) matrix leave.
+                  the TRE at that beta), return (n, grad, hess) if Safe Output
+                  allows it (complete inputs, n >= max(k, p+2); see
+                  safe_output.release_irls_step). Each round is audited,
+                  accepted or rejected; only p+1 numbers and a (p+1)x(p+1)
+                  matrix leave.
 """
 from __future__ import annotations
 
@@ -50,8 +53,7 @@ class LogregExecutor(Executor):
                 outcome = self._adapter.local(self._spec.outcome)
                 filters = self._adapter.local_filters(self._spec)
                 step = self._adapter.irls_step(outcome, features, shareable["beta"], filters)
-                safe_output.audit_release(tre_id, self._spec, step["n"], {"_logreg": ["grad", "hess"]},
-                                          "newton_raphson_round")
+                step = safe_output.release_irls_step(tre_id, self._spec, step, len(shareable["beta"]))
                 reply = Shareable()
                 reply["step"] = step
                 return reply

@@ -197,10 +197,13 @@ export default function Home() {
   }
 
   async function decide(item, decision) {
+    const specHash = item.spec_hash || item.id
     try {
-      await api(`/overseer/${item.spec_hash || item.id}/${decision}`, { method: 'POST', body: JSON.stringify({ note: '', by: 'researcher' }) })
-      setPending((items) => items.filter((entry) => (entry.spec_hash || entry.id) !== (item.spec_hash || item.id)))
+      await api(`/overseer/${specHash}/${decision}`, { method: 'POST', body: JSON.stringify({ note: '', by: 'researcher' }) })
+      setPending((items) => items.filter((entry) => (entry.spec_hash || entry.id) !== specHash))
       setNotice(`Result ${decision}d.`)
+      // the displayed run stopped polling when it was flagged; show the decision (and any released result)
+      if (runId && run?.spec_hash === specHash) setRun(await api(`/run/${runId}`))
     } catch (error) {
       setNotice(error.message)
     }

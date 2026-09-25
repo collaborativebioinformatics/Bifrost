@@ -1,4 +1,4 @@
-const backendBase = process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8080'
+const backendBase = process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8500'
 
 async function forward(request, context) {
   const { path = [] } = await context.params

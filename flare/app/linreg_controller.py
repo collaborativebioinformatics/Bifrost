@@ -65,7 +65,7 @@ class FedLinregController(Controller):
         self.log_info(fl_ctx, f"{len(sites)}/{len(expected)} sites joined, n={scaling['n']}; features {scaling['features']}")
 
         beta = [0.0] * (len(scaling["features"]) + 1)
-        history, missing_rounds = [], {}
+        history, missing_rounds, round_contributions = [], {}, {}
         for r in range(1, self.rounds + 1):
             data = Shareable()
             data.update({"beta": beta, "mean": scaling["mean"], "std": scaling["std"], "lr": self.lr,
@@ -73,7 +73,7 @@ class FedLinregController(Controller):
             replies = self._round("linreg_train", data, fl_ctx, abort_signal, targets=sites)
             if abort_signal.triggered:
                 return
-            if len(replies) < self.min_clients:
+            if len(replies) < max(self.min_clients, 2):  # one site's round would be its own local fit
                 self.log_error(fl_ctx, f"round {r}: only {len(replies)} updates; stopping early")
                 break
             miss = [s for s in sites if s not in replies]
@@ -84,7 +84,13 @@ class FedLinregController(Controller):
             beta = new_beta
             history.append({"round": r, "sites": len(replies), "max_delta": delta,
                             "coef": dict(zip(["intercept", *scaling["features"]], linreg.unstandardise(beta, scaling["mean"], scaling["std"])))})
+            round_contributions[str(r)] = {s: rep["update"]["n"] for s, rep in replies.items()}
             self.log_info(fl_ctx, f"round {r}/{self.rounds}: {len(replies)} sites, max|Δβ|={delta:.2e}")
+
+        if not history:
+            # beta is still the zero start vector; recording it would release a non-fit
+            self.log_error(fl_ctx, "no FedAvg round completed; not recording a result")
+            return
 
         coef = linreg.unstandardise(beta, scaling["mean"], scaling["std"])
         merged = {
@@ -95,7 +101,7 @@ class FedLinregController(Controller):
             "stats": {"_linreg": {"ols": {"outcome": self.spec.outcome,
                                           "coef": dict(zip(["intercept", *scaling["features"]], coef))},
                                   "n": scaling["n"], "history": history}},
-            "contributions": {},
+            "contributions": {"_rounds": round_contributions},  # who actually answered each round
         }
         check = disclosure_check.check(merged, self.spec.model_dump(), overseer_queue.release_log_path())
         run_dir = overseer_queue.record(self.spec.model_dump(), merged, check)

@@ -4,16 +4,16 @@ A Next.js interface for the Heimdall federated analysis API. It is intentionally
 
 ## Run
 
-```powershell
+```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-The UI uses Webpack mode because the native Windows SWC binary may be unavailable. Browser requests use the same-origin `/api` proxy, so the browser does not need CORS access to the Python API. The proxy targets `http://127.0.0.1:8080` by default. 
+The UI uses Webpack mode because the native Windows SWC binary may be unavailable. Browser requests use the same-origin `/api` proxy, so the browser does not need CORS access to the Python API. The proxy targets `http://127.0.0.1:8500` by default.
 
-```powershell
-$env:BACKEND_API_URL = "http://127.0.0.1:8080"
+```bash
+export BACKEND_API_URL="http://127.0.0.1:8500"
 ```
 
 The current backend API surface is:
@@ -32,10 +32,10 @@ The current backend API surface is:
 
 
 
-Start the Python API from the repository root on port 8080, then start this frontend:
+Start the Python API from the repository root on port 8500, then start this frontend:
 
-```powershell
-python -m uvicorn server.api:app --host 127.0.0.1 --port 8080 --workers 1
+```bash
+SERVER_OUT=server/api_out uvicorn server.api:app --port 8500
 cd frontend
 npm run dev
 ```

@@ -9,4 +9,5 @@ PROJECT=$($PY -c "import yaml; print(yaml.safe_load(open('flare/project.yml'))['
 $PY scripts/gen_sites.py >/dev/null
 rm -rf "flare/workspace/$PROJECT"/prod_*
 $PY -m nvflare.lighter.provision -p flare/project.yml -w flare/workspace --force >/dev/null
+$PY scripts/limit_server_jobs.py "flare/workspace/$PROJECT/prod_00" >/dev/null
 echo "flare/workspace/$PROJECT/prod_00"

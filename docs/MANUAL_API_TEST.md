@@ -90,7 +90,7 @@ Expect Uvicorn listening on `http://127.0.0.1:8500`. The API can start and serve
 
 `SERVER_OUT` isolates disclosure decisions, overseer records and release history. `AUDIT_DIR` isolates adapter audit records; `AUDIT_ROOT` keeps `/audit` from also reading older repository audit files. These temporary directories contain demo records, **not the Python environment**. A fresh directory prevents previous runs' disclosure history from affecting a new demonstration.
 
-Keep `--workers 1`: release coordination uses a process-local lock and background run status is held in memory. No other environment variables need to be set for this procedure. Optional `API_TRE_TIMEOUT` and `API_TRE_WORKERS` default to 10 seconds per HTTP operation and 8 workers.
+Keep `--workers 1`: release coordination and overseer decisions use a process-local lock and background run status is held in memory. No other environment variables need to be set for this procedure. Optional `API_TRE_TIMEOUT` and `API_TRE_WORKERS` default to 10 seconds per HTTP operation and 8 workers.
 
 ## 5. Swagger
 
@@ -135,14 +135,14 @@ These routes also exist in [server/api.py](../server/api.py). Keep them separate
 | --- | --- |
 | `POST /logistic-regression` | Conditional: use features `age`, `bmi`, target `case`, the same project and empty filters. Defaults: `rounds=25`, `tol=1e-8`, `min_cell_size=5`. Requires local outcome columns `case_status` (HUNT), `is_case` (Gefion), `CASE_STATUS` (Brev). The inspected CSVs lack these; regenerate deliberately with the current generator and restart TREs first. Not part of the basic demo. |
 | `GET /examples/{name}` | Suitable, read-only; e.g. `/examples/allele_freq.json` and `/examples/fed_linreg.json`. Returns a full `AnalysisSpec`, not the convenience endpoint's request schema. No data generation needed. |
-| `POST /run` | Optional background submission of a full `AnalysisSpec`; returns HTTP 202 and a `run_id`. Use an allele-frequency or linear-regression example for existing data. Optional `fedavg_rounds` applies only to linear regression; omit it for the exact solve. Avoid `fed_stats` in this demo: the current service's final statistics validation assumes a regression fit for non-allele analyses. |
+| `POST /run` | Optional background submission of a full `AnalysisSpec`; returns HTTP 202 and a `run_id`. Use an allele-frequency or linear-regression example for existing data. Optional `fedavg_rounds` applies only to linear regression; omit it for the exact solve. `fed_stats` also works, e.g. with variables `age` and `bmi`. |
 | `GET /run/{run_id}` | Suitable for polling a submitted run. Run status is in memory and disappears on API restart; no extra data needed. |
 | `GET /overseer` | Optional internal governance view. May be empty after successful requests. Contains detailed internal disclosure reasons; use only with local synthetic demo data. |
-| `POST /overseer/{spec_hash}/{decision}` | Administrative mutation, with `decision` equal to `approve` or `reject` and optional `note`/`by` body. Skip in the core demo. It changes stored decisions; already cached run status does not refresh automatically. |
+| `POST /overseer/{spec_hash}/{decision}` | Administrative mutation, with `decision` equal to `approve` or `reject` and optional `note`/`by` body. Skip in the core demo. It changes stored decisions; runs of that spec still flagged in memory then report `completed` with decision `APPROVED` and the released result, or `rejected` with decision `REJECTED`. |
 | `GET /audit` | Optional read-only internal audit view after requests. No extra data needed; contains internal records, not the sanitized researcher response. |
 | `GET /redoc`, `GET /openapi.json` | Suitable documentation/schema views; no TREs or data required. |
 
-The governance endpoints currently have no authentication layer. Keep this procedure on localhost with synthetic data.
+The governance endpoints currently have no authentication layer. `GET /overseer` and `GET /audit` show pre-suppression detail meant for overseers and auditors only — exact small counts behind each suppression, per-site cohort sizes of rejected requests, dominant sites — so anyone who can reach the API sees it. Keep this procedure on localhost with synthetic data; authentication is a disclosure requirement before any shared deployment.
 
 ## What this validates: direct adapter communication
 

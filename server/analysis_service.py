@@ -4,20 +4,19 @@ Direct API-to-TRE access is for the hackathon. The target secure deployment
 may instead run adapters inside TREs and use outbound FLARE communication.
 Run one API worker with exclusive ownership of SERVER_OUT; the existing JSON
 queue is not safe for simultaneous writers in other processes (including the
-overseer CLI). The lock below serializes this process's check/record operations.
+overseer CLI). overseer_queue.RELEASE_LOCK serializes this process's
+check/record operations and overseer decisions.
 """
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
-import json
 import logging
 import math
 import os
-from threading import Lock
 
 import httpx
 
-from adapters import registry
+from adapters import registry, safe_output
 from adapters.base import AggregateResult, VariableStats
 from flare.app import linreg, logreg
 from scripts.sites import load_sites
@@ -26,7 +25,6 @@ from server.aggregate import combine
 from spec.analysis_spec import AnalysisSpec
 
 LOG = logging.getLogger(__name__)
-_RELEASE_LOCK = Lock()
 
 
 def _validate_result(result: AggregateResult, tre_id: str, spec: AnalysisSpec) -> None:
@@ -79,30 +77,11 @@ def _run_site(tre_id: str, spec: AnalysisSpec, timeout: float):
                 LOG.warning("Could not close TRE %s client", tre_id)
 
 
-def _validate_irls_step(step, p: int) -> None:
-    """Same spirit as _validate_result's Gram check, for one round's worth of
-    logistic-regression sufficient statistics from one site."""
-    def count(value):
-        return type(value) is int and value >= 0
-
-    if not isinstance(step, dict) or not count(step.get("n")):
-        raise ValueError("invalid irls_step result")
-    json.dumps(step, allow_nan=False)
-    grad, hess = step.get("grad"), step.get("hess")
-    if (not isinstance(grad, list) or len(grad) != p
-            or any(type(v) not in (int, float) or not math.isfinite(v) for v in grad)):
-        raise ValueError("invalid irls_step gradient")
-    if (not isinstance(hess, list) or len(hess) != p
-            or any(not isinstance(row, list) or len(row) != p
-                   or any(type(v) not in (int, float) or not math.isfinite(v) for v in row)
-                   for row in hess)):
-        raise ValueError("invalid irls_step Hessian")
-
-
 def _run_logreg_step(tre_id: str, spec: AnalysisSpec, beta: list[float], timeout: float):
     """One Newton-Raphson round's worth of local computation at one site.
     Mirrors _run_site's shape/error handling; called once per round, not once
-    per request, since irls_step must be re-evaluated at the current beta."""
+    per request, since irls_step must be re-evaluated at the current beta.
+    The round leaves through the same Safe Output step as the FLARE executor's."""
     adapter = None
     try:
         adapter = registry.load(tre_id)
@@ -111,8 +90,9 @@ def _run_logreg_step(tre_id: str, spec: AnalysisSpec, beta: list[float], timeout
         outcome = adapter.local(spec.outcome)
         filters = adapter.local_filters(spec)
         step = adapter.irls_step(outcome, features, beta, filters)
-        _validate_irls_step(step, len(beta))
-        return step, None
+        return safe_output.release_irls_step(tre_id, spec, step, len(beta)), None
+    except safe_output.Rejected:
+        return None, "rejected"
     except httpx.TimeoutException:
         return None, "timeout"
     except httpx.RequestError:
@@ -132,6 +112,18 @@ def _valid_statistics(merged: dict, spec: AnalysisSpec) -> bool:
     if spec.analysis_type == "allele_freq":
         value = merged["stats"].get(spec.variables[0], {}).get("allele_freq")
         return isinstance(value, (int, float)) and math.isfinite(value)
+    if spec.analysis_type == "fed_stats":
+        # every variable carries observed values, and nothing released is non-finite
+        def observed(s: dict) -> bool:
+            if s.get("genotype_counts"):
+                return sum(s["genotype_counts"].values()) > 0
+            return (s.get("count") or 0) > 0
+
+        released = [merged["stats"].get(v) or {} for v in spec.variables]
+        scalars = [x for s in released for key, x in s.items()
+                   if key in ("count", "sum", "sum_sq", "mean", "var", "min", "max") and x is not None]
+        return (all(observed(s) for s in released)
+                and all(isinstance(x, (int, float)) and math.isfinite(x) for x in scalars))
     ols = merged["stats"].get("_linreg", {}).get("ols", {})
     coef = ols.get("coef", {})
     return bool(coef) and "error" not in ols and all(math.isfinite(v) for v in coef.values())
@@ -187,7 +179,7 @@ def analyse(spec: AnalysisSpec, fedavg_rounds: int = 0) -> tuple[int, dict]:
             merged["stats"]["_linreg"] = _fedavg(results, spec, fedavg_rounds)
             merged["method"] = {"mode": "fedavg", "rounds": fedavg_rounds, "local_steps": 1, "lr": 1.0}
     spec_dict = spec.model_dump()
-    with _RELEASE_LOCK:
+    with overseer_queue.RELEASE_LOCK:
         check = disclosure_check.check(merged, spec_dict, overseer_queue.release_log_path())
         # Disclosure approval alone does not mean an OLS solve was successful.
         if results and check["decision"] == "OK" and not _valid_statistics(merged, spec):
@@ -239,12 +231,11 @@ def analyse_logreg(spec: AnalysisSpec, rounds: int = 25, tol: float = 1e-8, ridg
                 else:
                     gated.append(result)
 
-    merged = combine(gated, expected)
-    merged["spec_hash"] = spec.spec_hash()
     spec_dict = spec.model_dump()
-
     sites = sorted(r.tre_id for r in gated)
     history: list[dict] = []
+    rounds_seen: dict[str, dict[str, int]] = {}  # round -> {site: n} of the steps it accepted
+    fit = None
     if len(sites) >= 2:  # matches disclosure_check's min_sites floor; no point running rounds otherwise
         beta = [0.0] * (len(spec.variables) + 1)
         for r in range(1, rounds + 1):
@@ -267,15 +258,23 @@ def analyse_logreg(spec: AnalysisSpec, rounds: int = 25, tol: float = 1e-8, ridg
             beta = new_beta
             history.append({"round": r, "sites": len(round_steps), "max_delta": delta,
                             "coef": dict(zip(["intercept", *spec.variables], beta))})
+            rounds_seen[str(r)] = {t: s["n"] for t, s in round_steps.items()}
             if delta < tol:
                 break
-        merged["stats"] = {"_logreg": {"logreg": {"outcome": spec.outcome,
-                                                   "coef": dict(zip(["intercept", *spec.variables], beta))},
-                                       "n": merged["n"], "history": history}}
+        fit = {"outcome": spec.outcome, "coef": dict(zip(["intercept", *spec.variables], beta))}
+
+    # The fit's sample is the sites whose rows entered at least one Newton round -- not every
+    # site that passed the gate (one rejected in every round contributed nothing).
+    contributed = {t for steps in rounds_seen.values() for t in steps}
+    merged = combine([g for g in gated if g.tre_id in contributed], expected)
+    merged["spec_hash"] = spec.spec_hash()
+    merged["contributions"]["_rounds"] = rounds_seen
+    if fit:
+        merged["stats"] = {"_logreg": {"logreg": fit, "n": merged["n"], "history": history}}
     merged["method"] = {"mode": "newton_raphson", "rounds": len(history), "ridge": ridge, "tol": tol}
     merged["sites_failed"] = failed
 
-    with _RELEASE_LOCK:
+    with overseer_queue.RELEASE_LOCK:
         check = disclosure_check.check(merged, spec_dict, overseer_queue.release_log_path())
         if gated and check["decision"] == "OK" and not _valid_logreg_statistics(merged, spec):
             check = {**check, "decision": "FLAGGED",
