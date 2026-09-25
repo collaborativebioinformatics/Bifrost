@@ -24,7 +24,8 @@ const releasedResult = {
 
 // Answers like server/api.py: a decision on a queued spec updates the flagged run that
 // GET /run/{id} returns (_decision_update); any other spec is a 404, which the page's api() throws.
-function fakeApi({ failReload = false } = {}) {
+// holdReload: a promise GET /run/{id} waits on, so a test can act while the reload is in flight
+function fakeApi({ failReload = false, holdReload = null } = {}) {
   const calls = []
   const bodies = []
   let run = flaggedRun
@@ -42,7 +43,7 @@ function fakeApi({ failReload = false } = {}) {
       }
       return { spec_hash: SPEC, decision: approve ? 'RELEASED' : 'REJECTED', released: approve }
     }
-    if (path === `/run/${run.run_id}` && !failReload) return run
+    if (path === `/run/${run.run_id}` && !failReload) return holdReload ? holdReload.then(() => run) : run
     throw new Error('API returned 502')
   }
   return { api, calls, bodies }
@@ -54,9 +55,15 @@ function fakePage(run) {
   const setters = {
     setPending: (update) => { page.pending = update(page.pending) },
     setNotice: (notice) => { page.notices.push(notice) },
-    setRun: (next) => { page.run = next },
+    setRun: (next) => { page.run = typeof next === 'function' ? next(page.run) : next },  // like React's updater form
   }
   return { page, setters }
+}
+
+function deferred() {
+  let resolve
+  const promise = new Promise((done) => { resolve = done })
+  return { promise, resolve }
 }
 
 function render(run) {
@@ -144,3 +151,24 @@ test('a failed reload still reports the recorded decision', async () => {
   assert.deepEqual(page.notices, ['Result rejected.', 'Result rejected. The run could not be reloaded: API returned 502'])
   assert.equal(page.run, flaggedRun)
 })
+
+const newerRun = { run_id: 'run-2', status: 'completed', submitted: '2026-09-25T10:05:00Z', spec_hash: 'd4e5f6', decision: 'OK' }
+for (const [label, newer] of [['still loading', null], ['already shown', newerRun]]) {
+  test(`a run submitted during the reload is not replaced (${label})`, async () => {
+    const reload = deferred()
+    const { api, calls } = fakeApi({ holdReload: reload.promise })
+    const { page, setters } = fakePage(flaggedRun)
+
+    const deciding = decideAndRefresh(api, { item: { spec_hash: SPEC }, decision: 'approve', runId: 'run-1', run: flaggedRun }, setters)
+    await new Promise((resume) => setImmediate(resume))
+    assert.deepEqual(calls, [`POST /overseer/${SPEC}/approve`, 'GET /run/run-1'])
+    // what submitRun, then the new run's first poll, do meanwhile (page.jsx)
+    setters.setRun(null)
+    if (newer) setters.setRun(newer)
+    reload.resolve()
+    await deciding
+
+    assert.equal(page.run, newer)
+    assert.deepEqual(page.notices, ['Result approved.'])
+  })
+}
