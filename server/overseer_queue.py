@@ -2,12 +2,17 @@
 
   python -m server.overseer_queue list
   python -m server.overseer_queue show <spec_hash>
-  python -m server.overseer_queue approve <spec_hash> [--note "..."]
-  python -m server.overseer_queue reject  <spec_hash> [--note "..."]
+  python -m server.overseer_queue approve <spec_hash> --revision <rev> [--by <name>] [--note "..."]
+  python -m server.overseer_queue reject  <spec_hash> --revision <rev> [--by <name>] [--note "..."]
+
+Each queued result gets a fresh revision (shown by list/show). A decision names the
+revision the overseer reviewed; if that is no longer the queued one (a rerun of the spec
+replaced it, or it was decided already), the decision is refused and nothing changes.
 
 Files (under SERVER_OUT, default server/out/):
-  overseer_queue.json   pending items
+  overseer_queue.json   pending items, one per spec hash, each with its revision
   release_log.jsonl     every release decision (auto-OK, approved, rejected), keyed by spec hash
+                        (and revision, for queued results and decisions on them)
   <spec_hash>/result.json          merged result of the latest run of that spec
   <spec_hash>/released.json        only while the latest run is OK / approved -- what left the server
 
@@ -48,9 +53,25 @@ def queue_path() -> Path:
     return out_dir() / "overseer_queue.json"
 
 
+class StaleRevision(Exception):
+    """The reviewed result is no longer the queued one: a later run of the spec replaced it,
+    or it was decided already."""
+
+
+class NotQueued(KeyError):
+    """Neither the spec is queued nor was it ever queued under the given revision."""
+
+
 def _load_queue() -> list[dict]:
     p = queue_path()
-    return json.loads(p.read_text()) if p.exists() else []
+    q = json.loads(p.read_text()) if p.exists() else []
+    for item in q:  # queued before revisions existed: a stable token from what was queued
+        item.setdefault("revision", f"legacy-{item['queued']}")
+    return q
+
+
+def queued_item(spec_hash: str) -> dict | None:
+    return next((i for i in _load_queue() if i["spec_hash"] == spec_hash), None)
 
 
 def _write_atomic(path: Path, text: str) -> None:
@@ -83,16 +104,16 @@ def _releasable(merged: dict) -> dict:
     return ReleasedResult.model_validate(released).model_dump(exclude_none=True)
 
 
-def latest_log_entry(spec_hash: str) -> dict | None:
-    """The newest release-log line for a spec hash (QUEUED / RELEASED / REJECTED), if any."""
+def _was_queued(spec_hash: str, revision: str) -> bool:
     p = release_log_path()
     lines = p.read_text().splitlines() if p.exists() else []
-    return next((e for e in map(json.loads, reversed(lines)) if e.get("spec_hash") == spec_hash), None)
+    return any(e.get("spec_hash") == spec_hash and e.get("revision") == revision for e in map(json.loads, lines))
 
 
-def log_release(spec: dict, merged: dict, check: dict, decision: str, note: str = "", by: str = "auto") -> None:
+def log_release(spec: dict, merged: dict, check: dict, decision: str, note: str = "", by: str = "auto",
+                revision: str | None = None) -> None:
     entry = {
-        "ts": _now(), "spec_hash": merged.get("spec_hash"), "signature": check.get("signature"),
+        "ts": _now(), "spec_hash": merged.get("spec_hash"), "revision": revision, "signature": check.get("signature"),
         "project_id": spec.get("project_id"), "analysis_type": spec.get("analysis_type"),
         "n": merged["n"], "coverage": merged["coverage"], "sites_missing": merged["sites_missing"],
         "check": check["decision"], "reasons": check.get("reasons", []), "decision": decision, "by": by, "note": note,
@@ -105,42 +126,59 @@ def record(spec: dict, merged: dict, check: dict) -> Path:
     """Called by the FLARE controller / HTTP API after the disclosure check. Returns the run dir.
     The merged result must satisfy the MergedResult contract; a shape drift fails here, loudly.
     The run dir and queue describe this (latest) run of the spec hash: an earlier run's
-    release or pending queue entry does not survive it."""
+    release or pending queue entry does not survive it. A flagged result is queued under a
+    fresh revision, so a decision taken on the earlier entry cannot release this one."""
     merged = MergedResult.model_validate(merged).model_dump(exclude_none=True)
     d = out_dir() / (merged.get("spec_hash") or "unknown")
     with RELEASE_LOCK:
+        # Withdraw the earlier run's queue entry and release before overwriting its files: if a
+        # write below fails, no revision is left pointing at files it was not issued for.
+        queue = _load_queue()
+        q = [i for i in queue if i["spec_hash"] != merged.get("spec_hash")]
+        if len(q) != len(queue):
+            _save_queue(q)
+        (d / "released.json").unlink(missing_ok=True)
         d.mkdir(parents=True, exist_ok=True)
         (d / "spec.json").write_text(json.dumps(spec, indent=2))
         (d / "result.json").write_text(json.dumps(merged, indent=2))
         (d / "check.json").write_text(json.dumps(check, indent=2))
-        q = [i for i in _load_queue() if i["spec_hash"] != merged.get("spec_hash")]
         if check["decision"] == "OK":
-            _write_atomic(d / "released.json", json.dumps(_releasable(merged), indent=2))
+            # log first: the differencing check reads the log, so a release must never exist unlogged
             log_release(spec, merged, check, "RELEASED")
+            _write_atomic(d / "released.json", json.dumps(_releasable(merged), indent=2))
         else:
-            (d / "released.json").unlink(missing_ok=True)
-            q.append({"spec_hash": merged.get("spec_hash"), "queued": _now(), "project_id": spec.get("project_id"),
-                      "analysis_type": spec.get("analysis_type"), "reasons": check["reasons"], "dir": str(d)})
-            log_release(spec, merged, check, "QUEUED")
+            revision = secrets.token_hex(8)
+            q.append({"spec_hash": merged.get("spec_hash"), "revision": revision, "queued": _now(),
+                      "project_id": spec.get("project_id"), "analysis_type": spec.get("analysis_type"),
+                      "reasons": check["reasons"], "dir": str(d)})
+            log_release(spec, merged, check, "QUEUED", revision=revision)
         _save_queue(q)
     return d
 
 
-def decide(spec_hash: str, approve: bool, note: str, by: str) -> Path:
-    """Approve or reject a queued result. Raises KeyError if it is not queued."""
+def decide(spec_hash: str, revision: str, approve: bool, note: str, by: str) -> Path:
+    """Approve or reject the queued result the overseer reviewed, named by its revision.
+    Raises StaleRevision, changing nothing, if the spec is queued under another revision or
+    this revision was queued before (a later run replaced it, or it was decided already);
+    NotQueued if neither the spec is queued nor this revision ever was."""
     with RELEASE_LOCK:
         q = _load_queue()
         item = next((i for i in q if i["spec_hash"] == spec_hash), None)
-        if item is None:
-            raise KeyError(f"{spec_hash}: not in queue")
+        if item is None and not _was_queued(spec_hash, revision):
+            raise NotQueued(f"{spec_hash}: not in queue")
+        if item is None or item["revision"] != revision:
+            raise StaleRevision(f"{spec_hash}: stale revision {revision}: the queue changed since it was listed (a newer "
+                                "run replaced the result, or it was decided already); list the queue and review again")
         d = Path(item["dir"])
         spec, merged, check = (json.loads((d / f).read_text()) for f in ("spec.json", "result.json", "check.json"))
+        # Dequeue, then log, then release: if a step fails, the revision cannot be decided again
+        # and no release exists without its log line (which the differencing check reads).
+        _save_queue([i for i in q if i["spec_hash"] != spec_hash])
+        log_release(spec, merged, check, "RELEASED" if approve else "REJECTED", note, by, revision)
         if approve:
             _write_atomic(d / "released.json", json.dumps(_releasable(merged), indent=2))
         else:
             (d / "released.json").unlink(missing_ok=True)
-        log_release(spec, merged, check, "RELEASED" if approve else "REJECTED", note, by)
-        _save_queue([i for i in q if i["spec_hash"] != spec_hash])
     return d
 
 
@@ -152,6 +190,7 @@ def main() -> None:
     for c in ("approve", "reject"):
         p = sub.add_parser(c)
         p.add_argument("spec_hash")
+        p.add_argument("--revision", required=True, help="the revision list/show printed for the result you reviewed")
         p.add_argument("--note", default="")
         p.add_argument("--by", default=os.environ.get("USER", "overseer"))
     a = ap.parse_args()
@@ -159,16 +198,18 @@ def main() -> None:
         q = _load_queue()
         print(f"{len(q)} pending" + ("" if not q else ":"))
         for i in q:
-            print(f"  {i['spec_hash']}  {i['analysis_type']:12s} {i['project_id']:16s} {i['queued']}  {'; '.join(i['reasons'])}")
+            print(f"  {i['spec_hash']}  rev {i['revision']}  {i['analysis_type']:12s} {i['project_id']:16s} {i['queued']}  "
+                  f"{'; '.join(i['reasons'])}")
     elif a.cmd == "show":
-        item = next((i for i in _load_queue() if i["spec_hash"] == a.spec_hash), None)
+        item = queued_item(a.spec_hash)
         if item is None:
             sys.exit("not in queue")
+        print(f"revision {item['revision']}", file=sys.stderr)  # stdout stays the result JSON
         print((Path(item["dir"]) / "result.json").read_text())
     else:
         try:
-            d = decide(a.spec_hash, a.cmd == "approve", a.note, a.by)
-        except KeyError as e:
+            d = decide(a.spec_hash, a.revision, a.cmd == "approve", a.note, a.by)
+        except (NotQueued, StaleRevision) as e:
             sys.exit(str(e))
         print(f"{a.spec_hash}: {'APPROVED -> ' + str(d / 'released.json') if a.cmd == 'approve' else 'REJECTED'}")
 

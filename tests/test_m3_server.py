@@ -1,5 +1,6 @@
 """M3: server merge, disclosure check, overseer queue -- pure unit tests (no FLARE)."""
 import json
+import sys
 import threading
 
 import pytest
@@ -63,15 +64,19 @@ def test_overseer_queue_roundtrip(tmp_path, monkeypatch):
     chk = disclosure_check.check(m, SPEC)
     d = overseer_queue.record(SPEC, m, chk)
     assert not (d / "released.json").exists()
-    assert [i["spec_hash"] for i in overseer_queue._load_queue()] == ["abc"]
-    overseer_queue.decide("abc", approve=True, note="reviewed", by="tester")
+    [item] = overseer_queue._load_queue()
+    assert item["spec_hash"] == "abc"
+    overseer_queue.decide("abc", item["revision"], approve=True, note="reviewed", by="tester")
     assert (d / "released.json").exists()
     assert "contributions" not in json.loads((d / "released.json").read_text())
     assert overseer_queue._load_queue() == []
     log = [json.loads(l) for l in overseer_queue.release_log_path().read_text().splitlines()]
     assert [e["decision"] for e in log] == ["QUEUED", "RELEASED"] and log[-1]["by"] == "tester"
-    with pytest.raises(KeyError):
-        overseer_queue.decide("abc", approve=False, note="", by="x")
+    assert [e["revision"] for e in log] == [item["revision"]] * 2
+    with pytest.raises(overseer_queue.StaleRevision):  # decided already: the lister's view is stale
+        overseer_queue.decide("abc", item["revision"], approve=False, note="", by="x")
+    with pytest.raises(KeyError):  # never queued under that revision
+        overseer_queue.decide("abc", "made-up", approve=False, note="", by="x")
 
 
 # ---- policy floor and dominance beyond count tables ------------------------------------
@@ -144,8 +149,142 @@ def test_rejection_leaves_nothing_released(tmp_path, monkeypatch):
     monkeypatch.setenv("SERVER_OUT", str(tmp_path))
     overseer_queue.record(SPEC, _merged(), OK)
     d = overseer_queue.record(SPEC, _merged(), FLAGGED)
-    overseer_queue.decide("abc", approve=False, note="", by="tester")
+    overseer_queue.decide("abc", overseer_queue.queued_item("abc")["revision"], approve=False, note="", by="tester")
     assert not (d / "released.json").exists() and overseer_queue._load_queue() == []
+
+
+# ---- decisions name the reviewed revision ----------------------------------------------
+def _merged_rerun():
+    # same spec hash, different data: what a rerun after a TRE's data changed would queue
+    return {**combine([_r("a", 120, 96, 20, 4), _r("b", 100, 70, 25, 5)], ["a", "b"]), "spec_hash": "abc"}
+
+
+def _snapshot(root):
+    return {str(p.relative_to(root)): p.read_bytes() for p in root.rglob("*") if p.is_file()}
+
+
+def test_every_queued_result_gets_a_fresh_revision(tmp_path, monkeypatch):
+    monkeypatch.setenv("SERVER_OUT", str(tmp_path))
+    revisions = set()
+    for _ in range(3):  # identical reruns
+        overseer_queue.record(SPEC, _merged(), FLAGGED)
+        revisions.add(overseer_queue.queued_item("abc")["revision"])
+    assert len(revisions) == 3
+
+
+@pytest.mark.parametrize("approve", [True, False])
+def test_a_decision_on_a_replaced_revision_changes_nothing(tmp_path, monkeypatch, approve):
+    """View A, rerun the spec to produce B, decide on A: refused, nothing released or
+    changed. Deciding B under its current revision then goes through."""
+    monkeypatch.setenv("SERVER_OUT", str(tmp_path))
+    d = overseer_queue.record(SPEC, _merged(), FLAGGED)
+    viewed = overseer_queue.queued_item("abc")["revision"]  # the overseer reviews A (n=200)
+    overseer_queue.record(SPEC, _merged_rerun(), FLAGGED)   # a rerun queues B (n=220)
+    current = overseer_queue.queued_item("abc")["revision"]
+    before = _snapshot(tmp_path)
+
+    with pytest.raises(overseer_queue.StaleRevision):
+        overseer_queue.decide("abc", viewed, approve=approve, note="", by="tester")
+    assert _snapshot(tmp_path) == before  # queue, release log, run directory: untouched
+    assert not (d / "released.json").exists()
+
+    overseer_queue.decide("abc", current, approve=approve, note="", by="tester")
+    assert overseer_queue._load_queue() == []
+    if approve:
+        assert json.loads((d / "released.json").read_text())["n"] == 220
+    else:
+        assert not (d / "released.json").exists()
+
+
+def test_a_revision_replaced_by_a_released_rerun_is_stale(tmp_path, monkeypatch):
+    monkeypatch.setenv("SERVER_OUT", str(tmp_path))
+    d = overseer_queue.record(SPEC, _merged(), FLAGGED)
+    viewed = overseer_queue.queued_item("abc")["revision"]
+    overseer_queue.record(SPEC, _merged_rerun(), OK)  # the rerun passes the check and is released
+    before = _snapshot(tmp_path)
+    with pytest.raises(overseer_queue.StaleRevision):
+        overseer_queue.decide("abc", viewed, approve=False, note="", by="tester")
+    assert _snapshot(tmp_path) == before
+    assert json.loads((d / "released.json").read_text())["n"] == 220
+
+
+def test_a_failed_rerun_leaves_nothing_the_old_revision_could_release(tmp_path, monkeypatch):
+    monkeypatch.setenv("SERVER_OUT", str(tmp_path))
+    d = overseer_queue.record(SPEC, _merged(), FLAGGED)
+    viewed = overseer_queue.queued_item("abc")["revision"]
+
+    def disk_full(*args, **kwargs):
+        raise OSError("disk full")
+
+    with monkeypatch.context() as m:
+        m.setattr(overseer_queue, "log_release", disk_full)
+        with pytest.raises(OSError):
+            overseer_queue.record(SPEC, _merged_rerun(), FLAGGED)  # dies after writing B's files
+    assert json.loads((d / "result.json").read_text())["n"] == 220
+    with pytest.raises(overseer_queue.StaleRevision):
+        overseer_queue.decide("abc", viewed, approve=True, note="", by="tester")
+    assert not (d / "released.json").exists()
+
+
+def test_a_decision_that_fails_midway_cannot_be_taken_again(tmp_path, monkeypatch):
+    monkeypatch.setenv("SERVER_OUT", str(tmp_path))
+    d = overseer_queue.record(SPEC, _merged(), FLAGGED)
+    revision = overseer_queue.queued_item("abc")["revision"]
+    real_write = overseer_queue._write_atomic
+
+    def release_fails(path, text):
+        if path.name == "released.json":
+            raise OSError("disk full")
+        real_write(path, text)
+
+    with monkeypatch.context() as m:
+        m.setattr(overseer_queue, "_write_atomic", release_fails)
+        with pytest.raises(OSError):
+            overseer_queue.decide("abc", revision, approve=True, note="", by="tester")
+    log = [json.loads(line) for line in overseer_queue.release_log_path().read_text().splitlines()]
+    assert [e["decision"] for e in log] == ["QUEUED", "RELEASED"]  # logged before the write that failed
+    with pytest.raises(overseer_queue.StaleRevision):  # not a second, possibly opposite, decision
+        overseer_queue.decide("abc", revision, approve=False, note="", by="tester")
+    assert not (d / "released.json").exists()
+
+
+def test_cli_decisions_name_the_reviewed_revision(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("SERVER_OUT", str(tmp_path))
+    overseer_queue.record(SPEC, _merged(), FLAGGED)
+    viewed = overseer_queue.queued_item("abc")["revision"]
+    overseer_queue.record(SPEC, _merged_rerun(), FLAGGED)
+
+    def cli(*args):
+        monkeypatch.setattr(sys, "argv", ["overseer_queue", *args])
+        overseer_queue.main()
+
+    with pytest.raises(SystemExit) as missing:
+        cli("approve", "abc")
+    assert missing.value.code == 2  # argparse: --revision is required
+    with pytest.raises(SystemExit, match="stale"):
+        cli("approve", "abc", "--revision", viewed)
+    assert not (tmp_path / "abc" / "released.json").exists()
+
+    capsys.readouterr()
+    cli("show", "abc")
+    shown = capsys.readouterr()
+    [_, current] = shown.err.split()  # "revision <rev>" on stderr; stdout stays the result JSON
+    assert json.loads(shown.out)["n"] == 220
+    cli("list")
+    assert f"rev {current}" in capsys.readouterr().out
+    cli("approve", "abc", "--revision", current)
+    assert json.loads((tmp_path / "abc" / "released.json").read_text())["n"] == 220
+
+
+def test_a_queue_written_before_revisions_can_still_be_decided(tmp_path, monkeypatch):
+    monkeypatch.setenv("SERVER_OUT", str(tmp_path))
+    d = overseer_queue.record(SPEC, _merged(), FLAGGED)
+    legacy = [{k: v for k, v in i.items() if k != "revision"} for i in json.loads(overseer_queue.queue_path().read_text())]
+    overseer_queue.queue_path().write_text(json.dumps(legacy))
+    [item] = overseer_queue._load_queue()
+    assert item["revision"] == f"legacy-{item['queued']}" == overseer_queue.queued_item("abc")["revision"]
+    overseer_queue.decide("abc", item["revision"], approve=True, note="", by="tester")
+    assert (d / "released.json").exists()
 
 
 def test_concurrent_decisions_do_not_lose_queue_updates(tmp_path, monkeypatch):
@@ -153,11 +292,12 @@ def test_concurrent_decisions_do_not_lose_queue_updates(tmp_path, monkeypatch):
     hashes = [f"h{i:02d}" for i in range(20)]
     for h in hashes:
         overseer_queue.record(SPEC, _merged(h), FLAGGED)
+    revisions = {i["spec_hash"]: i["revision"] for i in overseer_queue._load_queue()}
     errors = []
 
     def decide(h):
         try:
-            overseer_queue.decide(h, True, "", "tester")
+            overseer_queue.decide(h, revisions[h], True, "", "tester")
         except Exception as e:  # collected: a torn queue read surfaces here as JSONDecodeError
             errors.append(e)
 
@@ -182,7 +322,7 @@ def test_released_suppressions_name_the_location_but_not_the_count(tmp_path, mon
     monkeypatch.setenv("SERVER_OUT", str(tmp_path))
     m = combine([_r("a", 100, 80, 18, 2, rejected=["snp_x.genotype_counts.2:count=2<5"]), _r("b", 100, 70, 25, 5)], ["a", "b"])
     overseer_queue.record(SPEC, m, disclosure_check.check(m, SPEC))  # flagged: site_suppression
-    d = overseer_queue.decide("abc", approve=True, note="", by="tester")
+    d = overseer_queue.decide("abc", overseer_queue.queued_item("abc")["revision"], approve=True, note="", by="tester")
     assert json.loads((d / "released.json").read_text())["rejected_per_site"] == {"a": ["snp_x.genotype_counts.2"]}
     # the internal record keeps the detail for the overseer and the audit trail
     assert json.loads((d / "result.json").read_text())["rejected_per_site"] == {"a": ["snp_x.genotype_counts.2:count=2<5"]}

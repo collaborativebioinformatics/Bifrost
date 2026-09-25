@@ -382,9 +382,11 @@ def test_flagged_reasons_sanitized_but_internal_records_preserved(api, monkeypat
     body = assert_safe(response)
     assert body["decision"] == "FLAGGED" and body["reasons"] == [code]
     # The remaining metadata describes request identity and site availability,
-    # never cohort counts, genotype cells, or contributor fractions.
+    # never cohort counts, genotype cells, or contributor fractions. `revision` is the
+    # random queue token (overseer_queue.record), not derived from the data.
     assert set(body) == {"spec_hash", "status", "decision", "reasons", "sites_expected",
-                         "sites_reported", "sites_missing", "sites_failed", "coverage"}
+                         "sites_reported", "sites_missing", "sites_failed", "coverage", "revision"}
+    assert body["revision"] == overseer_queue._load_queue()[0]["revision"]
     assert not any(char.isdigit() for char in "".join(body["reasons"]))
     run = overseer_queue.out_dir() / body["spec_hash"]
     assert json.loads((run / "check.json").read_text())["reasons"] == [reason]

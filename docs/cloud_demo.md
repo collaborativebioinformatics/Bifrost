@@ -85,7 +85,7 @@ If the kit was packed for a name the lab cannot resolve, pass the address it can
 cd ~/Bifrost
 .venv/bin/python scripts/run_job.py --mode prod --wait-time 10 spec/examples/allele_freq.json
 .venv/bin/python scripts/run_job.py --mode prod --wait-time 10 spec/examples/allele_freq_rejected.json
-.venv/bin/python -m server.overseer_queue list        # then: approve <spec_hash> --by <name> --note "..."
+.venv/bin/python -m server.overseer_queue list        # then: approve <spec_hash> --revision <rev> --by <name> --note "..."
 .venv/bin/python scripts/run_job.py --mode prod --wait-time 5 --fedavg --rounds 10 spec/examples/fed_linreg.json
 ```
 
