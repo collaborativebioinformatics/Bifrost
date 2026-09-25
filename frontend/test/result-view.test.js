@@ -103,6 +103,23 @@ test('maps held disclosure reasons without exposing raw values', () => {
   assert.doesNotMatch(html, /min_sites:1<2|count=2|secret|Suppressed or rejected items|hunt: 2/)
 })
 
+test('maps the bare reason codes the API sends', () => {
+  const html = render({
+    decision: 'FLAGGED',
+    reasons: ['min_sites', 'site_suppression', 'k_anon', 'dominance', 'differencing', 'disclosure_review_required'],
+    result: {},
+  })
+
+  for (const explanation of [
+    'Insufficient site coverage for release.',
+    'A site-level result requires disclosure review.',
+    'A result did not meet the minimum cell-size policy.',
+    'A result did not meet the dominance policy.',
+    'A result did not meet the differencing policy.',
+    'Disclosure review required.',
+  ]) assert.match(html, new RegExp(explanation.replace(/[.]/g, '\\.')))
+})
+
 test('shows rejected items after release', () => {
   const html = render({
     decision: 'APPROVED',

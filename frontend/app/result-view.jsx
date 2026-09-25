@@ -5,11 +5,13 @@ function Stat({ label, value, detail, accent = '' }) {
 }
 
 function heldReason(reason) {
-  if (reason.startsWith("min_sites:")) return "Insufficient site coverage for release."
-  if (reason.startsWith("site_suppression:")) return "A site-level result requires disclosure review."
-  if (reason.startsWith("k_anon:")) return "A result did not meet the minimum cell-size policy."
-  if (reason.startsWith("dominance:")) return "A result did not meet the dominance policy."
-  if (reason.startsWith("differencing:")) return "A result did not meet the differencing policy."
+  // the API sends bare codes (server/schemas.py PublicReason); detail after ':' is ignored
+  const code = reason.split(":", 1)[0]
+  if (code === "min_sites") return "Insufficient site coverage for release."
+  if (code === "site_suppression") return "A site-level result requires disclosure review."
+  if (code === "k_anon") return "A result did not meet the minimum cell-size policy."
+  if (code === "dominance") return "A result did not meet the dominance policy."
+  if (code === "differencing") return "A result did not meet the differencing policy."
   return "Disclosure review required."
 }
 

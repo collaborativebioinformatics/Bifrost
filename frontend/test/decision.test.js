@@ -94,6 +94,7 @@ test('rejecting the displayed run reloads it and says it was rejected', async ()
   const html = render(page.run)
   assert.match(html, /REJECTED/)
   assert.match(html, /Output rejected by the overseer/)
+  assert.match(html, /A result did not meet the minimum cell-size policy/)
   assert.doesNotMatch(html, /pending release|Records analysed/)
 })
 
