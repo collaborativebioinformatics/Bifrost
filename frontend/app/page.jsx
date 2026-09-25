@@ -6,6 +6,7 @@ import {
   FlaskConical, GitBranch, Info, LockKeyhole, Play, RefreshCw, ShieldCheck,
   Table2, Waypoints, X,
 } from 'lucide-react'
+import { decideAndRefresh } from './decision'
 import { ResultView } from './result-view'
 
 const API_BASE = '/api'
@@ -196,17 +197,8 @@ export default function Home() {
     }
   }
 
-  async function decide(item, decision) {
-    const specHash = item.spec_hash || item.id
-    try {
-      await api(`/overseer/${specHash}/${decision}`, { method: 'POST', body: JSON.stringify({ note: '', by: 'researcher' }) })
-      setPending((items) => items.filter((entry) => (entry.spec_hash || entry.id) !== specHash))
-      setNotice(`Result ${decision}d.`)
-      // the displayed run stopped polling when it was flagged; show the decision (and any released result)
-      if (runId && run?.spec_hash === specHash) setRun(await api(`/run/${runId}`))
-    } catch (error) {
-      setNotice(error.message)
-    }
+  function decide(item, decision) {
+    return decideAndRefresh(api, { item, decision, runId, run }, { setPending, setNotice, setRun })
   }
 
   return (

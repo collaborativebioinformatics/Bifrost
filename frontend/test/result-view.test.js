@@ -8,7 +8,10 @@ function render(result) {
   return renderToStaticMarkup(createElement(ResultView, { result }))
 }
 
-for (const [decision, projectionKey] of [['FLAGGED', 'released'], ['REJECTED', 'released_result']]) {
+for (const [decision, projectionKey, heading] of [
+  ['FLAGGED', 'released', /Output withheld pending release/],
+  ['REJECTED', 'released_result', /Output rejected by the overseer/],
+]) {
   test(`holds total and per-site counts with ${decision.toLowerCase()} output`, () => {
     const html = render({
       decision,
@@ -28,7 +31,7 @@ for (const [decision, projectionKey] of [['FLAGGED', 'released'], ['REJECTED', '
       },
     })
 
-    assert.match(html, /Output withheld pending release/)
+    assert.match(html, heading)
     assert.doesNotMatch(html, /Records analysed/)
     assert.doesNotMatch(html, /hunt: 21/)
     assert.doesNotMatch(html, /stale: 999/)
@@ -98,6 +101,23 @@ test('maps held disclosure reasons without exposing raw values', () => {
   ]) assert.match(html, new RegExp(explanation.replace(/[.]/g, '\\.')))
 
   assert.doesNotMatch(html, /min_sites:1<2|count=2|secret|Suppressed or rejected items|hunt: 2/)
+})
+
+test('maps the bare reason codes the API sends', () => {
+  const html = render({
+    decision: 'FLAGGED',
+    reasons: ['min_sites', 'site_suppression', 'k_anon', 'dominance', 'differencing', 'disclosure_review_required'],
+    result: {},
+  })
+
+  for (const explanation of [
+    'Insufficient site coverage for release.',
+    'A site-level result requires disclosure review.',
+    'A result did not meet the minimum cell-size policy.',
+    'A result did not meet the dominance policy.',
+    'A result did not meet the differencing policy.',
+    'Disclosure review required.',
+  ]) assert.match(html, new RegExp(explanation.replace(/[.]/g, '\\.')))
 })
 
 test('shows rejected items after release', () => {

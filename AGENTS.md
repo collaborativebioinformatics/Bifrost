@@ -51,7 +51,7 @@ Checks that exist and were confirmed working on 2026-09-17:
 - `scripts/onboard_tre.sh <id>` — adds a site, regenerates, provisions, packs a kit (~2 s).
 - `scripts/provision.sh && scripts/up.sh --flare` — builds 7 images (~5 min cold), starts everything, checks each TRE's `/health` from its own FLARE client container, asserts no TRE container can reach the public internet. Then `docker compose exec flare-server python scripts/run_job.py --mode prod --admin-kit "/workspace/federated_apis/prod_00/admin@ncfh.org" spec/examples/allele_freq.json` (~11 s) and `python scripts/verify.py server/out/<spec_hash>/result.json` on the host. Verified 2026-09-17 with Docker Desktop 29.8 on macOS.
 
-CI: `.github/workflows/ci.yml` runs on every push and pull request: a merge-conflict-marker check over tracked files, `python -m pytest -q -m "not slow"` against Python 3.11 and 3.12, and a frontend job (Node 24: `npm ci`, `npm test`, `npm run build`). No linter or formatter is configured.
+CI: `.github/workflows/ci.yml` runs on pushes to `main` and on every pull request: a merge-conflict-marker check over tracked files, `python -m pytest -q -m "not slow"` against Python 3.11 and 3.12, and a frontend job (Node 24: `npm ci`, `npm test`, `npm run build`). No linter or formatter is configured.
 
 For documentation changes, check source accuracy, links, and `git diff --check`.
 
