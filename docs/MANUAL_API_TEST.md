@@ -123,7 +123,7 @@ Health should return HTTP 200:
 
 Metadata should show all three sites online. `probe=false` skips network checks; metadata describes configured variables and does not verify that every column exists in the CSVs.
 
-With the existing synthetic data, all three TREs and fresh output storage, the two analysis requests should return HTTP 200 with `decision: "OK"`, successful coverage, and a `result`. Allele frequency is under `result.stats.snp_rs001`; the fitted regression is under `result.stats._linreg`. Internal `contributions` must not appear. A `FLAGGED` analysis response instead contains sanitized reason codes and **no result**.
+With the existing synthetic data, all three TREs and fresh output storage, the two analysis requests should return HTTP 200 with `decision: "OK"`, successful coverage, and a `result`. Allele frequency is under `result.stats.snp_rs001`; the fitted regression is under `result.stats._linreg`. Internal `contributions` must not appear. A `FLAGGED` analysis response instead contains sanitized reason codes, the overseer queue `revision` it was queued under, and **no result**.
 
 The regression request fits an intercept plus `age` and `bmi` to predict `sbp`. It is a small, reliable demo; do not compare its coefficients directly to the seven-feature model's coefficients in `data/ground_truth.json`. Ground truth must use the same dataset, features, target and filters as the request. Ground truth is not an API input.
 
@@ -138,7 +138,7 @@ These routes also exist in [server/api.py](../server/api.py). Keep them separate
 | `POST /run` | Optional background submission of a full `AnalysisSpec`; returns HTTP 202 and a `run_id`. Use an allele-frequency or linear-regression example for existing data. Optional `fedavg_rounds` applies only to linear regression; omit it for the exact solve. `fed_stats` also works, e.g. with variables `age` and `bmi`. |
 | `GET /run/{run_id}` | Suitable for polling a submitted run. Run status is in memory and disappears on API restart; no extra data needed. |
 | `GET /overseer` | Optional internal governance view. May be empty after successful requests. Contains detailed internal disclosure reasons; use only with local synthetic demo data. |
-| `POST /overseer/{spec_hash}/{decision}` | Administrative mutation, with `decision` equal to `approve` or `reject` and optional `note`/`by` body. Skip in the core demo. It changes stored decisions; runs of that spec still flagged in memory then report `completed` with decision `APPROVED` and the released result, or `rejected` with decision `REJECTED`. |
+| `POST /overseer/{spec_hash}/{decision}` | Administrative mutation, with `decision` equal to `approve` or `reject` and a body with the item's `revision` from `GET /overseer` (required) and optional `note`/`by`. Skip in the core demo. It changes stored decisions; the flagged run that produced that revision then reports `completed` with decision `APPROVED` and the released result, or `rejected` with decision `REJECTED`. If a rerun of the spec has replaced the result since it was listed, the revision is stale: HTTP 409, and nothing is released or changed. |
 | `GET /audit` | Optional read-only internal audit view after requests. No extra data needed; contains internal records, not the sanitized researcher response. |
 | `GET /redoc`, `GET /openapi.json` | Suitable documentation/schema views; no TREs or data required. |
 

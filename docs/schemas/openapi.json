@@ -389,18 +389,11 @@
           }
         ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/OverseerDecision"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ],
-                "title": "Body"
+                "$ref": "#/components/schemas/OverseerDecision"
               }
             }
           }
@@ -413,6 +406,12 @@
                 "schema": {}
               }
             }
+          },
+          "404": {
+            "description": "not in queue, or decision is not approve / reject"
+          },
+          "409": {
+            "description": "stale revision: the queue changed since it was listed (a newer run replaced the result, or it was decided already); nothing changed"
           },
           "422": {
             "description": "Validation Error",
@@ -596,6 +595,18 @@
                 "type": "null"
               }
             ]
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision",
+            "description": "overseer queue revision, present when the result was queued for review"
           },
           "error": {
             "anyOf": [
@@ -1211,6 +1222,12 @@
       },
       "OverseerDecision": {
         "properties": {
+          "revision": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Revision",
+            "description": "revision of the queued result that was reviewed (GET /overseer)"
+          },
           "note": {
             "type": "string",
             "title": "Note",
@@ -1224,6 +1241,9 @@
         },
         "additionalProperties": false,
         "type": "object",
+        "required": [
+          "revision"
+        ],
         "title": "OverseerDecision"
       },
       "OverseerItem": {
@@ -1235,6 +1255,11 @@
           "spec_hash": {
             "type": "string",
             "title": "Spec Hash"
+          },
+          "revision": {
+            "type": "string",
+            "title": "Revision",
+            "description": "fresh per queued result; a decision must name it, and a rerun of the spec replaces it"
           },
           "queued": {
             "type": "string",
@@ -1275,6 +1300,7 @@
         "required": [
           "id",
           "spec_hash",
+          "revision",
           "queued",
           "reasons"
         ],
@@ -1714,6 +1740,18 @@
                 "type": "null"
               }
             ]
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision",
+            "description": "overseer queue revision, present when the result was queued for review"
           },
           "error": {
             "anyOf": [

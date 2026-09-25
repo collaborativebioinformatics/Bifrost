@@ -6,10 +6,10 @@ import {
   FlaskConical, GitBranch, Info, LockKeyhole, Play, RefreshCw, ShieldCheck,
   Table2, Waypoints, X,
 } from 'lucide-react'
+import { API_BASE, api } from './api-client'
 import { decideAndRefresh } from './decision'
 import { ResultView } from './result-view'
 
-const API_BASE = '/api'
 const staticMetadata = {
   projects: [{ id: 'ncfh-2026-demo' }, { id: 'hackathon-test' }],
   variables: [
@@ -32,16 +32,6 @@ const staticMetadata = {
     'fed_linreg',
     'fed_logreg',
   ],
-}
-
-async function api(path, options) {
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) },
-  })
-  const body = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(body.detail || body.error || body.message || `API returned ${response.status}`)
-  return body
 }
 
 export default function Home() {

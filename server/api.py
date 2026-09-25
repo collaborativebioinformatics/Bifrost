@@ -190,26 +190,15 @@ def example(name: str):
 
 _RUNS: dict[str, dict] = {}
 _RUNS_LOCK = threading.Lock()
+# revision -> run update: a decision that landed after record() queued the revision but before
+# the run that queued it wrote its status. Guarded by _RUNS_LOCK.
+_DECIDED_EARLY: dict[str, dict] = {}
 
 
 def _decision_update(approve: bool, result: dict | None) -> dict:
     """How a flagged run reports an overseer's decision."""
     return ({"status": "completed", "decision": "APPROVED", "result": result} if approve
             else {"status": "rejected", "decision": "REJECTED"})
-
-
-def _decided_meanwhile(spec_hash: str) -> dict:
-    """An overseer can decide between record() queuing this run's result and the run's
-    status being written. Read under RELEASE_LOCK, the queue and release log say whether
-    one did: this run queued the item, so if it is gone, a later log line removed it."""
-    if any(i["spec_hash"] == spec_hash for i in overseer_queue._load_queue()):
-        return {}
-    last = overseer_queue.latest_log_entry(spec_hash)
-    if not last or last["check"] != "FLAGGED" or last["decision"] not in ("RELEASED", "REJECTED"):
-        return {}  # e.g. superseded by a later, auto-released run of the same spec
-    approve = last["decision"] == "RELEASED"
-    released = overseer_queue.out_dir() / spec_hash / "released.json"
-    return _decision_update(approve, json.loads(released.read_text()) if approve else None)
 
 
 def _run_in_background(run_id: str, spec: AnalysisSpec, fedavg_rounds: int) -> None:
@@ -220,9 +209,9 @@ def _run_in_background(run_id: str, spec: AnalysisSpec, fedavg_rounds: int) -> N
     except Exception:
         LOG.exception("Run %s failed", run_id)
         body = {"status": "failed", "error": "analysis_failed", "spec_hash": spec.spec_hash()}
-    with overseer_queue.RELEASE_LOCK, _RUNS_LOCK:  # no decision lands between this check and the write
+    with _RUNS_LOCK:  # overseer_decide applies or parks a decision under this lock too
         if body.get("status") == "flagged":
-            body = {**body, **_decided_meanwhile(body["spec_hash"])}
+            body = {**body, **_DECIDED_EARLY.pop(body.get("revision"), {})}
         _RUNS[run_id].update(body, finished=_now())
 
 
@@ -252,27 +241,35 @@ def overseer():
     return {"items": [{"id": i["spec_hash"], **{k: v for k, v in i.items() if k != "dir"}} for i in overseer_queue._load_queue()]}
 
 
-@app.post("/overseer/{spec_hash}/{decision}")
-def overseer_decide(spec_hash: str, decision: str, body: OverseerDecision | None = None):
+@app.post("/overseer/{spec_hash}/{decision}",
+          responses={404: {"description": "not in queue, or decision is not approve / reject"},
+                     409: {"description": "stale revision: the queue changed since it was listed (a newer run "
+                                          "replaced the result, or it was decided already); nothing changed"}})
+def overseer_decide(spec_hash: str, decision: str, body: OverseerDecision):
     if decision not in ("approve", "reject"):
         raise HTTPException(404, "decision must be approve or reject")
-    body = body or OverseerDecision()
     approve = decision == "approve"
-    # The decision, reading what it released, and every waiting run's status change as one
-    # step: no rerun or finishing background run interleaves (see _decided_meanwhile).
+    # The revision check, the decision, reading what it released, and the deciding run's
+    # status change as one step: no rerun interleaves.
     with overseer_queue.RELEASE_LOCK:
         try:
-            d = overseer_queue.decide(spec_hash, approve, body.note, body.by)
-        except KeyError:
+            d = overseer_queue.decide(spec_hash, body.revision, approve, body.note, body.by)
+        except overseer_queue.NotQueued:
             raise HTTPException(404, "not in queue")
+        except overseer_queue.StaleRevision:
+            raise HTTPException(409, "stale revision: the queue changed since it was listed; reload it and review again")
         update = _decision_update(approve, json.loads((d / "released.json").read_text()) if approve else None)
-        # Runs of this spec still waiting on the overseer now report the decision (the queue
-        # holds the latest run's result, which is what an approval releases).
+        # Only the run that queued the decided revision reports it; an earlier run whose result
+        # was replaced before any decision stays flagged.
         with _RUNS_LOCK:
-            for run in _RUNS.values():
-                if run.get("spec_hash") == spec_hash and run["status"] == "flagged":
-                    run.update(update)
-    return {"spec_hash": spec_hash, "decision": "RELEASED" if approve else "REJECTED", "released": approve}
+            runs = list(_RUNS.values())
+            waiting = [run for run in runs if run.get("revision") == body.revision and run["status"] == "flagged"]
+            for run in waiting:
+                run.update(update)
+            if not waiting and any(run.get("spec_hash") == spec_hash and run["status"] == "running" for run in runs):
+                _DECIDED_EARLY[body.revision] = update  # its run may not have written its status yet
+    return {"spec_hash": spec_hash, "revision": body.revision, "decision": "RELEASED" if approve else "REJECTED",
+            "released": approve}
 
 
 @app.get("/audit", response_model=AuditLog)

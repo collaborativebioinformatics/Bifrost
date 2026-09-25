@@ -11,7 +11,7 @@
   <a href="https://github.com/collaborativebioinformatics/Bifrost/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/collaborativebioinformatics/Bifrost/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Python 3.11+" src="https://img.shields.io/badge/python-3.11%20%7C%203.12-3776AB?logo=python&logoColor=white">
   <img alt="NVIDIA FLARE 2.9" src="https://img.shields.io/badge/NVIDIA%20FLARE-2.9-76B900?logo=nvidia&logoColor=white">
-  <img alt="tests" src="https://img.shields.io/badge/tests-149%20fast%20%2B%204%20simulator-1FB89A">
+  <img alt="tests" src="https://img.shields.io/badge/tests-161%20fast%20%2B%204%20simulator-1FB89A">
   <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-lightgrey"></a>
 </p>
 
@@ -57,7 +57,7 @@ cd frontend && npm install && npm run dev                           # Next.js UI
 The fast suite needs no network; the FLARE simulator suite is marked `slow`:
 
 ```sh
-python -m pytest -q -m "not slow"    # 149 tests, ~6 s
+python -m pytest -q -m "not slow"    # 161 tests, ~6 s
 python -m pytest -q -m slow          # 4 tests, ~70 s
 ```
 
@@ -70,7 +70,7 @@ python scripts/dev_tres.py
 python scripts/run_local.py spec/examples/allele_freq.json
 ```
 
-**FLARE simulator** — one process, real controllers and executors. Each run writes `server/out/<spec_hash>/result.json`; `released.json` appears only when the disclosure check passes or an overseer approves, and is what would leave the server. Directories are keyed by spec hash and describe the latest run: a flagged rerun withdraws an earlier `released.json`, a released rerun clears a stale queue entry, and the release log keeps the history.
+**FLARE simulator** — one process, real controllers and executors. Each run writes `server/out/<spec_hash>/result.json`; `released.json` appears only when the disclosure check passes or an overseer approves, and is what would leave the server. Directories are keyed by spec hash and describe the latest run: a flagged rerun withdraws an earlier `released.json`, a released rerun clears a stale queue entry, and the release log keeps the history. Each queued result gets a fresh revision, and an overseer's approve or reject names the revision reviewed: a decision on a result that a rerun has since replaced is refused and changes nothing.
 
 ```sh
 scripts/run_job.sh spec/examples/allele_freq.json

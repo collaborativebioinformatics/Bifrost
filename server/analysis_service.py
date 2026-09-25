@@ -54,6 +54,13 @@ def _public_reasons(reasons: list[str]) -> list[str]:
     ))
 
 
+def _queued_revision(spec: AnalysisSpec, check: dict) -> dict:
+    """{"revision": ...} of the result record() just queued, else {}. Call under RELEASE_LOCK,
+    right after record(), so no other run of the spec can have replaced the queue entry."""
+    item = overseer_queue.queued_item(spec.spec_hash()) if check["decision"] != "OK" else None
+    return {"revision": item["revision"]} if item else {}
+
+
 def _run_site(tre_id: str, spec: AnalysisSpec, timeout: float):
     adapter = None
     try:
@@ -186,6 +193,7 @@ def analyse(spec: AnalysisSpec, fedavg_rounds: int = 0) -> tuple[int, dict]:
             check = {**check, "decision": "FLAGGED",
                      "reasons": [*check["reasons"], "analysis:no_valid_statistics"]}
         overseer_queue.record(spec_dict, merged, check)
+        revision = _queued_revision(spec, check)
 
     body = {
         "spec_hash": spec.spec_hash(),
@@ -193,7 +201,7 @@ def analyse(spec: AnalysisSpec, fedavg_rounds: int = 0) -> tuple[int, dict]:
         "decision": check["decision"], "reasons": _public_reasons(check["reasons"]),
         "sites_expected": expected, "sites_reported": merged["sites_reported"],
         "sites_missing": merged["sites_missing"], "sites_failed": failed,
-        "coverage": merged["coverage"],
+        "coverage": merged["coverage"], **revision,
     }
     if not results:
         return 503, {**body, "status": "failed", "error": "no_tres_responded"}
@@ -280,6 +288,7 @@ def analyse_logreg(spec: AnalysisSpec, rounds: int = 25, tol: float = 1e-8, ridg
             check = {**check, "decision": "FLAGGED",
                      "reasons": [*check["reasons"], "analysis:no_valid_statistics"]}
         overseer_queue.record(spec_dict, merged, check)
+        revision = _queued_revision(spec, check)
 
     body = {
         "spec_hash": spec.spec_hash(),
@@ -287,7 +296,7 @@ def analyse_logreg(spec: AnalysisSpec, rounds: int = 25, tol: float = 1e-8, ridg
         "decision": check["decision"], "reasons": _public_reasons(check["reasons"]),
         "sites_expected": expected, "sites_reported": merged["sites_reported"],
         "sites_missing": merged["sites_missing"], "sites_failed": failed,
-        "coverage": merged["coverage"],
+        "coverage": merged["coverage"], **revision,
     }
     if not gated:
         return 503, {**body, "status": "failed", "error": "no_tres_responded"}

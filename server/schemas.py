@@ -105,6 +105,7 @@ class DisclosureCheck(_Strict):
 # ---- HTTP API ---------------------------------------------------------------------
 PublicReason = Literal["min_sites", "site_suppression", "k_anon", "dominance", "differencing",
                        "analysis", "disclosure_review_required"]
+QUEUED_REVISION = "overseer queue revision, present when the result was queued for review"
 
 
 class AnalysisResponse(_Strict):
@@ -121,6 +122,7 @@ class AnalysisResponse(_Strict):
     sites_failed: dict[str, str]
     coverage: str
     result: ReleasedResult | None = None
+    revision: str | None = Field(default=None, description=QUEUED_REVISION)
     error: str | None = None
 
 
@@ -152,6 +154,7 @@ class RunStatus(_Strict):
     sites_failed: dict[str, str] = Field(default_factory=dict)
     coverage: str | None = None
     result: ReleasedResult | None = None
+    revision: str | None = Field(default=None, description=QUEUED_REVISION)
     error: str | None = None
 
 
@@ -185,6 +188,7 @@ class Metadata(_Strict):
 class OverseerItem(_Strict):
     id: str  # == spec_hash
     spec_hash: str
+    revision: str = Field(description="fresh per queued result; a decision must name it, and a rerun of the spec replaces it")
     queued: str
     project_id: str | None = None
     analysis_type: str | None = None
@@ -196,6 +200,7 @@ class OverseerQueue(_Strict):
 
 
 class OverseerDecision(_Strict):
+    revision: str = Field(min_length=1, description="revision of the queued result that was reviewed (GET /overseer)")
     note: str = ""
     by: str = "overseer-ui"
 

@@ -27,7 +27,7 @@ The current backend API surface is:
 - `POST /run`
 - `GET /run/{run_id}`
 - `GET /overseer`
-- `POST /overseer/{spec_hash}/{decision}`
+- `POST /overseer/{spec_hash}/{decision}` with the queue item's `revision` (from `GET /overseer`) and optional `note`, `by`. A stale revision returns 409; the UI then reloads the queue.
 - `GET /audit`
 
 

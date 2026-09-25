@@ -721,6 +721,19 @@
       ],
       "default": null
     },
+    "revision": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "overseer queue revision, present when the result was queued for review",
+      "title": "Revision"
+    },
     "error": {
       "anyOf": [
         {
