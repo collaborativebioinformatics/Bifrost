@@ -37,7 +37,7 @@ function fakeApi({ failReload = false, failQueue = false, holdReload = null } = 
   const bodies = []
   let run = flaggedRun
   let queue = [queued, queuedToo]
-  const queuedOnce = new Set(queue.map((entry) => entry.revision))
+  const queuedOnce = new Set(queue.map((entry) => `${entry.spec_hash} ${entry.revision}`))  // like _was_queued
   const fail = (status, message) => Object.assign(new Error(message), { status })
   async function api(path, options = {}) {
     calls.push(`${options.method || 'GET'} ${path}`)
@@ -50,7 +50,7 @@ function fakeApi({ failReload = false, failQueue = false, holdReload = null } = 
     if (decided) {
       const item = queue.find((entry) => entry.spec_hash === decided[1])
       const { revision } = JSON.parse(options.body)
-      if (!item && !queuedOnce.has(revision)) throw fail(404, 'not in queue')
+      if (!item && !queuedOnce.has(`${decided[1]} ${revision}`)) throw fail(404, 'not in queue')
       if (revision !== item?.revision) throw fail(409, 'stale revision')
       queue = queue.filter((entry) => entry !== item)
       const approve = decided[2] === 'approve'
@@ -67,7 +67,7 @@ function fakeApi({ failReload = false, failQueue = false, holdReload = null } = 
   // a rerun of the spec replaces its queued result under a fresh revision
   function rerun() {
     queue = queue.map((entry) => (entry.spec_hash === SPEC ? { ...entry, revision: 'rev-2' } : entry))
-    queuedOnce.add('rev-2')
+    queuedOnce.add(`${SPEC} rev-2`)
   }
   return { api, calls, bodies, rerun }
 }
